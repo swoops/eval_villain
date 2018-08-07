@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="config.css"/>
+    </style>
+    </head>
+
+    <body>
+        <div id="needles-container" class="container">
+            <h1 id="needlesh1">Needles</h1>
+            <div class="table">
+                <form id="needles-form">
+                    <!-- header stuff -->
+                    <div class="row">
+                        <div class="col-sm">
+                            <div class="cell">
+                                <legend>Enabled</legend>
+                            </div>
+                        </div>
+                        <div class="col-md">
+                            <div class="cell">
+                                <legend>Name</legend>
+                            </div>
+                        </div>
+                        <div class="col-lg">
+                            <div class="cell">
+                                <legend>
+                                    Pattern<span>*</span>
+                                    <div class="legend">
+                                      <div class="regex">
+                                          <p>Regex will be highlighted</p>
+                                      </div>
+                                    </div>
+                                </legend>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="deletes" id="needles-deletes">
+            </div>
+            <div class="errors" id="needles-errors"></div>
+            <div class="butts">
+                <button id="add-needles">Add</button>
+                <button id="save-needles"  class="saved" disabled>Save</button>
+            </div>
+        </div>
+
+        <div id="blacklist-container" class="container">
+            <h1 id="blacklisth1">Blacklist</h1>
+            <div class="table">
+                <form id="blacklist-form">
+                    <!-- header stuff -->
+                    <div class="row">
+                        <div class="col-sm">
+                            <div class="cell">
+                                <legend>Enabled</legend>
+                            </div>
+                        </div>
+                        <div class="col-md">
+                            <div class="cell">
+                                <legend>Name</legend>
+                            </div>
+                        </div>
+                        <div class="col-lg">
+                            <div class="cell">
+                                <legend>
+                                    Pattern<span>*</span>
+                                    <div class="legend">
+                                      <div class="regex">
+                                          <p>Regex will be highlighted</p>
+                                      </div>
+                                    </div>
+                                </legend>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="deletes" id="blacklist-deletes">
+            </div>
+            <div class="errors" id="blacklist-errors"></div>
+            <div class="butts">
+                <button id="add-blacklist">Add</button>
+                <button id="save-blacklist"  class="saved" disabled>Save</button>
+            </div>
+        </div>
+
+        <div id="functions-container" class="container">
+            <h1 id="functionsh1">Functions</h1>
+            <div class="table">
+                <form id="functions-form">
+                    <!-- header stuff -->
+                    <div class="row">
+                        <div class="col-sm">
+                            <div class="cell">
+                                <legend>Enabled</legend>
+                            </div>
+                        </div>
+                        <div class="col-md">
+                            <div class="cell">
+                                <legend>Name</legend>
+                            </div>
+                        </div>
+                        <div class="col-lg">
+                            <div class="cell">
+                                <legend>Pattern</legend>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="deletes" id="functions-deletes">
+            </div>
+            <div class="errors" id="functions-errors"></div>
+            <div class="butts">
+                <button id="add-functions">Add</button>
+                <button id="save-functions"  class="saved" disabled>Save</button>
+            </div>
+        </div>
+
+        <div id="targets-container" class="container">
+            <h1 id="targetsh1">Targets</h1>
+            <div class="table">
+                <form id="targets-form">
+                    <!-- header stuff -->
+                    <div class="row">
+                        <div class="col-sm">
+                            <div class="cell">
+                                <legend>Enabled</legend>
+                            </div>
+                        </div>
+                        <div class="col-md">
+                            <div class="cell">
+                                <legend>Name</legend>
+                            </div>
+                        </div>
+                        <div class="col-lg">
+                            <div class="cell">
+                                <legend>Pattern</legend>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="deletes" id="targets-deletes">
+            </div>
+            <div class="errors" id="targets-errors"></div>
+            <div class="butts">
+                <button id="add-targets">Add</button>
+                <button id="save-targets"  class="saved" disabled>Save</button>
+            </div>
+        </div>
+
+        <div id="formats-container"class="container">
+            <h1 id="formatsh1">Console Colors</h1>
+            <div class="table">
+                <form id="formats-form">
+                    <!-- header stuff -->
+                    <div class="row">
+                        <div class="col-sm">
+                            <div class="cell">
+                                <legend>Name</legend>
+                            </div>
+                        </div>
+                        <div class="col-lg">
+                            <div class="cell">
+                                <legend>Default CSS</legend>
+                            </div>
+                        </div>
+                        <div class="col-lg">
+                            <div class="cell">
+                                <legend>Highlight CSS</legend>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="errors" id="formats-errors"></div>
+            <div class="butts">
+                <button id="test-formats">Test</button>
+                <button id="save-formats"  class="saved" disabled>Save</button>
+            </div>
+        </div>
+        <script src="../../js/bkg_api.js"></script>
+        <script src="validate.js"></script>
+        <script src="config.js"></script>
+    </body>
+
+</html>

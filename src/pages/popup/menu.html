@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+  <title>Eval Villain Configuration</title>
+  <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="menu.css"/>
+  </head>
+<body>
+	<!-- is the whole thing on?!?! -->
+	<div id="popup-content">
+		<!-- Rounded switch -->
+		<div class="toggle">
+			<label class="switch main">
+			  <input type="checkbox" name="onoff" value="on" id="toggle">
+			  <div class="slider"></div>
+			</label>
+			<span class="label" id="toggle-label">Villain is OFF</span>
+		</div>
+
+		<!-- start sub-menus -->
+		<h1 id="h1-needles">Needles</h1>
+		<div id="needles" class="submenu closed">
+			<ul id="needles-sub">
+			<!-- needles will go here via js-->
+			</ul>
+		</div>
+
+		<h1 id="h1-blacklist">Blacklist</h1>
+		<div id="blacklist" class="submenu closed">
+			<ul id="blacklist-sub">
+			<!-- blaclist will go here via js-->
+			</ul>
+		</div>
+
+		<h1 id="h1-targets">Targets</h1>
+		<div id="targets" class="submenu closed">
+			<ul id="targets-sub">
+			<!-- targets will go here via js-->
+			</ul>
+		</div>
+
+		<h1 id="h1-functions">Functions</h1>
+		<div id="functions" class="submenu closed">
+			<ul id="functions-sub">
+			<!-- functions will go here via js-->
+			</ul>
+		</div>
+
+		<h1 id="h1-onOff">Enable/Disable</h1>
+		<div id="onOff" class="submenu closed">
+			<ul id="onOff-sub">
+      <!-- onOff will go here via js -->
+      </ul>
+		</div>
+
+		<h1 id="h1-autoOpen">Auto Open</h1>
+		<div id="autoOpen" class="submenu closed">
+			<ul id="autoOpen-sub">
+      <!-- autoOpen will go here via js -->
+      </ul>
+		</div>
+
+		<h1 id="h1-config">Configure</h1>
+	</div>
+<script src="../../js/bkg_api.js"></script>
+<script src="menu.js"></script>
+</body>
+</html>
