@@ -7,15 +7,15 @@ eval, and warn you of their use.
 
 Get it from: https://addons.mozilla.org/en-US/firefox/addon/eval-villain/
 
-Alsternativly, you can load it temporarily in debug mode. Clone the repo
+Alternativly, you can load it temporarily in debug mode. Clone the repo
 locally. Then go to "about:debugging" in Firefox. Click "Load Temporary
-Add-on". A file browser will appear. Select any file in the repo.
+Add-on". A file browser will appear. Select any file in the `src` direcory.
 
-## normal use
+## Normal use
 Turn it on, open the console `ctrl+shift+i` and browse some sites like normal.
 Eval Villain will inject it's own henchmen into the page to keep an eye on some
-of the more nefarious JavaScript functions. When one of those functions does
-something, a notification will appear in the console. If it is of particular
+of the more nefarious JavaScript functions. When one of those functions is called,
+a notification will appear in the console. If it is of particular
 interest it will be highlighted and formatted more strongly.
 
 ## Some Terminology
@@ -25,8 +25,7 @@ interest it will be highlighted and formatted more strongly.
 * Normal Result: Hooked Input is examined for potential user input. If no
   potential user input is found then the notification produced will be a normal
   result.
-* Interesting Result: The notification produced will be interesting if hooked
-  input is beloved to have user input.
+* Interesting Result: Output from EV that is considered of higher priority.
 * popup: The popup is the menu that appears when you click the EV icon. 
 * Configuration page: This is the page where the bulk of the configuration can
   be done. It can be reached by clicking "configure" in the popup menu, or in
@@ -37,9 +36,9 @@ interest it will be highlighted and formatted more strongly.
 **Important**: You must refresh the web page you are testing after every single
 configuration change for that change to take affect. 
 
-EV works by injecting a script into the page at load time. To limit the attack
-surface against EV, there is no communication with the page after injection.
-All user configuration options are included in the initial injection.
+EV works by injecting a script into the page at load time. To limit the the 
+potential for a visited site to attack EV, EV does not have any further 
+comunication with the page after it is injected.
 
 ### popup Options
 Most of the popup menu just lets you turn some option on or off. EV itself can
@@ -89,8 +88,7 @@ a.test("   pAtTerN"); // true
 ### Targets
 Targets limit what pages are injected by EV. If no targets are enabled then
 EV will inject every page. Target patterns can contain wild cards, for example
-`*://example.com/*`. To get all the details about what is allowed consult the
-[Firefox
+`*://example.com/*`. All the details can be found in the [Firefox
 documentation](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Match_patterns)
 
 ### functions
