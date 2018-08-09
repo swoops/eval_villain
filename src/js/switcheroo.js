@@ -81,7 +81,7 @@ var rewriter = function(CONFIG){
     // url fragment search
     if ( formats.fragment.use ){
       let needle = location.hash.substring(1);
-      if ( needle.length > 0  && str.indexOf(needle) >= 0){
+      if ( needle.length > 0  && needle.length >= 4 && str.indexOf(needle) >= 0){
         if ( quick ) return true;
         highlightWords("fragment", str, needle);
       }
