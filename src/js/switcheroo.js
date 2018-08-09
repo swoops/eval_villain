@@ -100,7 +100,7 @@ var rewriter = function(CONFIG){
           // check for each query param,value
           for (let vars of query.split("&")){
             for (let needle of vars.split("=")){
-              if ( needle.length > 0  && str.indexOf(needle) >= 0){
+              if ( needle.length > 0  && needle.length >= 4 && str.indexOf(needle) >= 0){
                 if ( quick ) return true;
                 highlightWords("query", str, needle);
               }
