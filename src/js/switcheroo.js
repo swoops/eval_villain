@@ -2,6 +2,7 @@ var rewriter = function(CONFIG){
   function blacklistCheck(str){
     for (let needle of CONFIG.blacklist){
       if ( needle.test ){ // regex
+        needle.lastIndex = 0;
         if ( needle.test(str) ) return true;
       }else if ( needle.length > 0 ){
         if ( str.indexOf(needle) >= 0 ) return true;
@@ -14,50 +15,67 @@ var rewriter = function(CONFIG){
      * quickly check to see how interesting this input is so the title can be
      * formated nicely
     */
-    function highlightWords(sName, str, word){
+    function highlightWords(sName, str, word, alt=false){
       var defColor = formats[sName].default;
       var hiColor  = formats[sName].highlight;
       var titleStr = "%c%s %c%s%c found";
+      let titleArgs = [ defColor, sName, hiColor, word, defColor ];
+      if ( alt ){
+        titleStr += " -> %c" + alt;
+        titleArgs.push(hiColor);
+      }
 
       if ( formats[sName].open )
-        console.group(titleStr, defColor, sName, hiColor, word, defColor);
+        console.group(titleStr, ...titleArgs);
       else
-        console.groupCollapsed(titleStr, defColor, sName, hiColor, word, defColor);
+        console.groupCollapsed(titleStr, ...titleArgs);
 
-      let regex = null;
-      if ( typeof(word) !== "string" ){
-        regex = str.match(word);
-      }
-
-      let ar = [];
-
-      // split works on all occurances of regex even if global flag is false
-      // we make our own split here in that case
-      if ( regex && !word.global ){
-        let w = regex[0];
-        ar.push(str.substr(0, str.indexOf(w)));
-        ar.push(str.substr(str.indexOf(w) + w.length));
-      }else{
-        ar = str.split(word);
-      }
-
-      let tot = ( ar.length*2 ) - 1;
-      let fmt = "%c%s".repeat(tot);
-
-      let args = [];
-      for (let i=0; i<tot; i++ ){
-        if ( i%2 == 0){
-          args.push(defColor);
-          args.push(ar[i/2]);
-        }else{
-          args.push(hiColor);
-          if (regex){
-            args.push(regex[( i-1 )/2])
-          }else{
-            args.push(word);
-          }
+      let others = [];
+      let matches = [];
+      if ( !word.test ){
+        // normal substring search
+        others = str.split(word);
+        for (let i=0; i<others.length-1; i++){
+          matches.push(word);
         }
+      }else if (word.global == false){
+        // not global regex, so just split into two on first
+        let m = word.exec(str)[0];
+        matches.push(m);
+        others.push(str.substr(0, str.indexOf(m)));
+        others.push(str.substr(str.indexOf(m)+m.length));
+      }else{
+        let holder = str;
+        let match = null;
+        word.lastIndex = 0;
+        let prevLast = 0;
+
+        while ((match = word.exec(str)) != null){
+          let m = match[0];
+          matches.push(m);
+          others.push(holder.substr(0, holder.indexOf(m)));
+          holder = holder.substr(holder.indexOf(m)+m.length);
+          if ( prevLast >= word.lastIndex ) {
+            console.warn("Attempting to highlight matches for this regex will cause infinite loop, stopping")
+            break;
+          }
+          prevLast = word.lastIndex;
+        }
+        others.push(holder);
       }
+
+      // pharrow it all to goether
+      let fmt = "%c%s".repeat(others.length*2-1);
+      let args = [];
+      let i=0;
+      for (; i<matches.length; i++){
+        args.push(defColor);
+        args.push(others[i]);
+        args.push(hiColor);
+        args.push(matches[i]);
+      }
+      args.push(defColor);
+      args.push(others[i++]);
       console.log(fmt, ...args);
 
       console.groupEnd(titleStr);
@@ -68,10 +86,17 @@ var rewriter = function(CONFIG){
     // needle search
     if ( formats.needle.use ){
       for (let needle of CONFIG["needles"]){
-        if (
-          (needle.test && needle.test(str)) || // regex test
-          (!needle.test && needle.length > 0 && str.indexOf(needle) >= 0 )
-        ){
+
+        // regex
+        if ( needle.test && needle.test(str)){
+          // make sure each call works, thanks js and thanks:
+          // https://stackoverflow.com/questions/2630418/javascript-regex-returning-true-then-false-then-true-etc
+          needle.lastIndex=0;
+          if ( quick ) return true;
+          highlightWords("needle", str, needle);
+        }
+
+        if ( str.indexOf(needle) >= 0){
           if ( quick ) return true;
           highlightWords("needle", str, needle);
         }
@@ -81,10 +106,16 @@ var rewriter = function(CONFIG){
     // url fragment search
     if ( formats.fragment.use ){
       let needle = location.hash.substring(1);
-      if ( needle.length > 0  && needle.length >= 4 && str.indexOf(needle) >= 0){
-        if ( quick ) return true;
-        highlightWords("fragment", str, needle);
-      }
+      if ( needle.length > 0  && needle.length >= 4 ){
+        let dec = uDec(needle);
+        if ( dec != needle &&  str.indexOf(dec) >= 0 ){
+          if ( quick ) return true;
+          highlightWords("fragment", str, dec, "[URL Decoded]");
+        } if ( str.indexOf(needle) >= 0 ){
+          if ( quick ) return true;
+          highlightWords("fragment", str, needle);
+        }
+      }// length check
     }
 
     // url param search
@@ -100,10 +131,16 @@ var rewriter = function(CONFIG){
           // check for each query param,value
           for (let vars of query.split("&")){
             for (let needle of vars.split("=")){
-              if ( needle.length > 0  && needle.length >= 4 && str.indexOf(needle) >= 0){
-                if ( quick ) return true;
-                highlightWords("query", str, needle);
-              }
+              if ( needle.length > 0  && needle.length >= 4){
+                let dec = uDec(needle);
+                if ( str.indexOf(dec) >= 0 ){
+                  if ( quick ) return true;
+                  highlightWords("query", str, dec, "[URL Decoded]");
+                } else if ( str.indexOf(needle) >= 0 ){
+                  if ( quick ) return true;
+                  highlightWords("query", str, needle);
+                } // str search for needle|urdecode(needle)
+              } // is param needle a reasonable len
             } // needle loop
           } // vars loop
         } // whole query found?
@@ -259,6 +296,7 @@ var rewriter = function(CONFIG){
   }
 
   // hook first
+  var uDec = decodeURI;
   for (let name of CONFIG["functions"]) {
     applyEvalVillain(name);
   }
@@ -267,7 +305,7 @@ var rewriter = function(CONFIG){
   strToRegex(CONFIG.blacklist);
 
 
-  console.log("%c[EV]%c Functions hooked for %c%s%c", 
+  console.log("%c[EV]%c Functions hooked for %c%s%c",
     CONFIG.formats.interesting.highlight,
     CONFIG.formats.interesting.default,
     CONFIG.formats.interesting.highlight,
