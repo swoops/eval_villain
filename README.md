@@ -14,8 +14,8 @@ Add-on". A file browser will appear. Select any file in the `src` direcory.
 ## Normal use
 Turn it on, open the console `ctrl+shift+i` and browse some sites like normal.
 Eval Villain will inject it's own henchmen into the page to keep an eye on some
-of the more nefarious JavaScript functions. When one of those functions is called,
-a notification will appear in the console. If it is of particular
+of the more nefarious JavaScript functions. When one of those functions is
+called, a notification will appear in the console. If it is of particular
 interest it will be highlighted and formatted more strongly.
 
 ## Some Terminology
@@ -36,9 +36,9 @@ interest it will be highlighted and formatted more strongly.
 **Important**: You must refresh the web page you are testing after every single
 configuration change for that change to take affect. 
 
-EV works by injecting a script into the page at load time. To limit the the 
-potential for a visited site to attack EV, EV does not have any further 
-comunication with the page after it is injected.
+EV works by injecting a script into the page at load time. To limit the
+potential for a visited site to attack EV, EV does not have any further
+communication with the page after it is injected.
 
 ### popup Options
 Most of the popup menu just lets you turn some option on or off. EV itself can
@@ -60,7 +60,8 @@ details.
 Blacklist patterns can be used to disregard benign input. Hooked input is
 searched for the blacklist patterns. If EV finds a match, there will be no
 output. This is the first search done on hooked input, so it takes priority
-over everything else. Like Needles, a regular expression can be used, see regex.
+over everything else. Like Needles, a regular expression can be used, see
+regex.
 
 Tips:
 * Dev out your blacklist pattern as a Needle first to make sure you are
@@ -93,7 +94,7 @@ documentation](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExten
 
 ### functions
 These are the functions that are being hooked. Configure new ones by putting in
-a nice descriptive name and a patern that will resolve to the function. For a
+a nice descriptive name and a pattern that will resolve to the function. For a
 setter, like `innerHTML` use `setter(innerHTML)`. If no functions are enabled
 then Eval Villain won't be doing much, even if it is on. Since EV injects the
 page before any JavaScript in the page has loaded, only native JavaScript
@@ -130,5 +131,9 @@ looks good. Open the console and click the "test" button in the configuration
 page. If you like the console output then click save to keep it.
 
 ## Todo:
-* if config is already open, go to that page instead of a new tab (may require
-  permissions...)
+* Update interesting results title with the reasons it is interesting
+* Check if URL prams are URL decoded when used. 
+* Prohibit hooking of functions used in hooking code to avoid infinite
+  recursion.
+* If the config page is already open, go to that page instead of a new tab (may
+  require permissions...)
