@@ -111,7 +111,7 @@ var rewriter = function(CONFIG){
         if ( dec != needle &&  str.indexOf(dec) >= 0 ){
           if ( quick ) return true;
           highlightWords("fragment", str, dec, "[URL Decoded]");
-        } if ( str.indexOf(needle) >= 0 ){
+        }else if ( str.indexOf(needle) >= 0 ){
           if ( quick ) return true;
           highlightWords("fragment", str, needle);
         }
@@ -133,7 +133,7 @@ var rewriter = function(CONFIG){
             for (let needle of vars.split("=")){
               if ( needle.length > 0  && needle.length >= 4){
                 let dec = uDec(needle);
-                if ( str.indexOf(dec) >= 0 ){
+                if ( dec != needle &&  str.indexOf(dec) >= 0 ){
                   if ( quick ) return true;
                   highlightWords("query", str, dec, "[URL Decoded]");
                 } else if ( str.indexOf(needle) >= 0 ){
