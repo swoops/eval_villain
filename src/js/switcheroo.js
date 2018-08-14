@@ -130,18 +130,17 @@ var rewriter = function(CONFIG){
         }else{
           // check for each query param,value
           for (let vars of query.split("&")){
-            for (let needle of vars.split("=")){
-              if ( needle.length > 0  && needle.length >= 4){
-                let dec = uDec(needle);
-                if ( dec != needle &&  str.indexOf(dec) >= 0 ){
-                  if ( quick ) return true;
-                  highlightWords("query", str, dec, "[URL Decoded]");
-                } else if ( str.indexOf(needle) >= 0 ){
-                  if ( quick ) return true;
-                  highlightWords("query", str, needle);
-                } // str search for needle|urdecode(needle)
-              } // is param needle a reasonable len
-            } // needle loop
+            let needle = vars.split("=")[1];
+            if ( needle && needle.length > 0  && needle.length >= 4){
+              let dec = uDec(needle);
+              if ( dec != needle &&  str.indexOf(dec) >= 0 ){
+                if ( quick ) return true;
+                highlightWords("query", str, dec, "[URL Decoded]");
+              } else if ( str.indexOf(needle) >= 0 ){
+                if ( quick ) return true;
+                highlightWords("query", str, needle);
+              } // str search for needle|urdecode(needle)
+            } // is param needle a reasonable len
           } // vars loop
         } // whole query found?
       } // is there a query?
