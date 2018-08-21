@@ -152,13 +152,13 @@ var rewriter = function(CONFIG){
   function EvalVillainHook(name, args){
     if ( args.length > 1 ){
       console.group("[EV] Error:");
-      console.warn("[EV] %s Expected 1 argument, got %d", name, args.length);
+      console.log("[EV] %s Expected 1 argument, got %d", name, args.length);
       console.dir(args);
       console.groupEnd("[EV] Error:");
       return;
     }else if ( typeof( args[0] ) !== "string" ){
       console.group("[EV] Error:");
-      console.warn("[EV] %s Expected first argument to be string, got %s", name, typeof(args[1]));
+      console.log("[EV] %s Expected first argument to be string, got %s", name, typeof(args[0]));
       console.dir(args);
       console.groupEnd("[EV] Error:");
       return;
