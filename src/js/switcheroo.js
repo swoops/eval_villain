@@ -76,7 +76,7 @@ var rewriter = function(CONFIG){
       }
       args.push(defColor);
       args.push(others[i++]);
-      console.log(fmt, ...args);
+      clog(fmt, ...args);
 
       console.groupEnd(titleStr);
     } // end highlightWords
@@ -107,8 +107,12 @@ var rewriter = function(CONFIG){
     if ( formats.fragment.use ){
       let needle = location.hash.substring(1);
       if ( needle.length > 0  && needle.length >= 4 ){
-        let dec = uDec(needle);
-        if ( dec != needle &&  str.indexOf(dec) >= 0 ){
+
+        let dec = false; 
+        try { dec = uDec(needle); } // decodeURI can throw errors at times
+        catch { dec = false; }
+
+        if ( dec && dec != needle &&  str.indexOf(dec) >= 0 ){
           if ( quick ) return true;
           highlightWords("fragment", str, dec, "[URL Decoded]");
         }else if ( str.indexOf(needle) >= 0 ){
@@ -132,8 +136,12 @@ var rewriter = function(CONFIG){
           for (let vars of query.split("&")){
             let needle = vars.split("=")[1];
             if ( needle && needle.length > 0  && needle.length >= 4){
-              let dec = uDec(needle);
-              if ( dec != needle &&  str.indexOf(dec) >= 0 ){
+
+              let dec = false;
+              try { dec = uDec(needle); } // decodeURI can throw errors at times
+              catch { dec = false; }
+
+              if ( dec && dec != needle &&  str.indexOf(dec) >= 0 ){
                 if ( quick ) return true;
                 highlightWords("query", str, dec, "[URL Decoded]");
               } else if ( str.indexOf(needle) >= 0 ){
@@ -152,14 +160,16 @@ var rewriter = function(CONFIG){
   function EvalVillainHook(name, args){
     if ( args.length > 1 ){
       console.group("[EV] Error:");
-      console.log("[EV] %s Expected 1 argument, got %d", name, args.length);
+      clog("[EV] %s Expected 1 argument, got %d", name, args.length);
       console.dir(args);
+      console.trace();
       console.groupEnd("[EV] Error:");
       return;
     }else if ( typeof( args[0] ) !== "string" ){
       console.group("[EV] Error:");
-      console.log("[EV] %s Expected first argument to be string, got %s", name, typeof(args[0]));
+      clog("[EV] %s Expected first argument to be string, got %s", name, typeof(args[0]));
       console.dir(args);
+      console.trace();
       console.groupEnd("[EV] Error:");
       return;
     }
@@ -204,7 +214,7 @@ var rewriter = function(CONFIG){
           console.group(argTitle, argFormat.default);
         else
           console.groupCollapsed(argTitle, argFormat.default);
-        console.log("%c%s", argFormat.highlight, argSt);
+        clog("%c%s", argFormat.highlight, argSt);
         console.groupEnd(argTitle);
       }
     }
@@ -259,7 +269,7 @@ var rewriter = function(CONFIG){
       return;
 
     } else if ( ! /^[a-zA-Z.]+$/.test(name) ){
-      console.log("[EV] name: %s invalid, not hooking", name);
+      clog("[EV] name: %s invalid, not hooking", name);
     } else if ( name.indexOf(".") >= 0 ){
       let groups = name.split(".");
       let i = 0; // outside for loop for a reason
@@ -296,6 +306,7 @@ var rewriter = function(CONFIG){
 
   // hook first
   var uDec = decodeURI;
+  var clog = console.log;
   for (let name of CONFIG["functions"]) {
     applyEvalVillain(name);
   }
@@ -304,7 +315,7 @@ var rewriter = function(CONFIG){
   strToRegex(CONFIG.blacklist);
 
 
-  console.log("%c[EV]%c Functions hooked for %c%s%c",
+  clog("%c[EV]%c Functions hooked for %c%s%c",
     CONFIG.formats.interesting.highlight,
     CONFIG.formats.interesting.default,
     CONFIG.formats.interesting.highlight,
