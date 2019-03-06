@@ -56,7 +56,7 @@ var rewriter = function(CONFIG){
           others.push(holder.substr(0, holder.indexOf(m)));
           holder = holder.substr(holder.indexOf(m)+m.length);
           if ( prevLast >= word.lastIndex ) {
-            console.warn("Attempting to highlight matches for this regex will cause infinite loop, stopping")
+            console.warn("[EV] Attempting to highlight matches for this regex will cause infinite loop, stopping")
             break;
           }
           prevLast = word.lastIndex;
@@ -158,27 +158,48 @@ var rewriter = function(CONFIG){
 
   /* where all the magic happens */
   function EvalVillainHook(name, args){
-    if ( args.length > 1 ){
-      console.group("[EV] Error:");
-      clog("[EV] %s Expected 1 argument, got %d", name, args.length);
+    var argSt = args[0];
+    // TODO: no special exception here, handle mutle args for any function
+    if ( name == "Function" ){
+      argSt = args[args.length-1];
+    }else if ( args.length > 1 ){
+      let errtitle = "%c[EV] Error: %c%s%c Expected 1 argument, got %c%d"
+      let hl   = CONFIG.formats.title.highlight;
+      let dflt = CONFIG.formats.title.default;
+      console.groupCollapsed(
+        errtitle, dflt,
+        hl, name, dflt,
+        hl, args.length
+      );
       console.dir(args);
+      console.groupCollapsed("trace:");
       console.trace();
-      console.groupEnd("[EV] Error:");
-      return;
-    }else if ( typeof( args[0] ) !== "string" ){
-      console.group("[EV] Error:");
-      clog("[EV] %s Expected first argument to be string, got %s", name, typeof(args[0]));
-      console.dir(args);
-      console.trace();
-      console.groupEnd("[EV] Error:");
+      console.groupEnd("trace:");
+      console.groupEnd(errtitle);
       return;
     }
 
-    var argSt = args[0];
+    if ( typeof( argSt ) !== "string" ){
+      let errtitle = "%c[EV] Error: %c%s%c Expected first argument of type string, got %c%s"
+      let hl   = CONFIG.formats.title.highlight;
+      let dflt = CONFIG.formats.title.default;
+      let out = args[0] === null ? null : typeof(args[0]);
+      console.groupCollapsed(
+        errtitle, dflt,
+        hl, name, dflt,
+        hl, out
+      );
+      console.dir(args);
+      console.groupCollapsed("trace:");
+      console.trace();
+      console.groupEnd("trace:");
+      console.groupEnd(errtitle);
+      return;
+    }
+
     if ( blacklistCheck(argSt) ) return;
     var interest = highlightSearch(argSt, true);
     var format = null;
-
 
     if ( interest ) // set formating to interesting or title
       format = CONFIG.formats.interesting;
@@ -278,6 +299,7 @@ var rewriter = function(CONFIG){
       }
       leaf = groups[i];
     }
+
     var orig = where[leaf];
     where[leaf] = function() {
       try {
@@ -285,9 +307,20 @@ var rewriter = function(CONFIG){
       } catch (err){
         hookErr(err, arguments, name);
       }
-      return Function.prototype.apply.call(
-        orig, where, arguments
-      );
+      try {
+        return FF.prototype.apply.call(
+          orig, where, arguments
+        );
+      }catch (err){
+        hookErr(err, arguments, name);
+        clog("orig: ", orig);
+      }
+    }
+
+    if ( name == "Function" ){
+      // special case
+      where[leaf].prototype.bind = FF.prototype.bind;
+      where[leaf].prototype.bind.apply = FF.prototype.bind.apply;
     }
   }
 
@@ -307,13 +340,13 @@ var rewriter = function(CONFIG){
   // hook first
   var uDec = decodeURI;
   var clog = console.log;
+  var FF = Function;
   for (let name of CONFIG["functions"]) {
     applyEvalVillain(name);
   }
 
   strToRegex(CONFIG.needles);
   strToRegex(CONFIG.blacklist);
-
 
   clog("%c[EV]%c Functions hooked for %c%s%c",
     CONFIG.formats.interesting.highlight,
