@@ -183,7 +183,7 @@ var rewriter = function(CONFIG){
       let errtitle = "%c[EV] Error: %c%s%c Expected first argument of type string, got %c%s"
       let hl   = CONFIG.formats.title.highlight;
       let dflt = CONFIG.formats.title.default;
-      let out = args[0] === null ? null : typeof(args[0]);
+      let out = args[0] === null ? null : typeof(argSt);
       console.groupCollapsed(
         errtitle, dflt,
         hl, name, dflt,
