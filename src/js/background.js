@@ -41,9 +41,9 @@ function checkStorage(){
     ],
     "blacklist" : [
       {
-        "name" : "This Example",
-        "enabled" : false,
-        "pattern" : "/^this$/"
+        "name" : "Small Stuff",
+        "enabled" : true,
+        "pattern" : "/^\\s*\\S{0,3}\\s$/"
       }
 
     ],
@@ -55,7 +55,7 @@ function checkStorage(){
       },
       {
         "name" : "Regex Example",
-        "enabled" : true,
+        "enabled" : false,
         "pattern" :"/[aeiou]/gi"
       }
     ],
@@ -71,7 +71,7 @@ function checkStorage(){
       {
           "name": "Normal Results",
           "pattern": "title",
-          "enabled": true
+          "enabled": false
       }, {
           "name": "Intresting Results",
           "pattern": "interesting",
@@ -79,7 +79,7 @@ function checkStorage(){
       }, {
           "name": "Args Dsipaly",
           "pattern": "args",
-          "enabled": true
+          "enabled": false
       }, {
           "name": "Needle Search",
           "pattern": "needle",
@@ -95,7 +95,7 @@ function checkStorage(){
       }, {
           "name": "Stack Display",
           "pattern": "stack",
-          "enabled": true
+          "enabled": false
       }
     ],
     "onOff" : [ // user can only toggle enabled value for this object
