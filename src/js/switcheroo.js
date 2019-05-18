@@ -108,7 +108,7 @@ var rewriter = function(CONFIG){
       let needle = location.hash.substring(1);
       if ( needle.length > 0  && needle.length >= 4 ){
 
-        let dec = false; 
+        let dec = false;
         try { dec = uDec(needle); } // decodeURI can throw errors at times
         catch { dec = false; }
 
@@ -156,94 +156,137 @@ var rewriter = function(CONFIG){
     return false;
   }
 
-  /* where all the magic happens */
-  function EvalVillainHook(name, args){
-    var argSt = args[0];
-    // TODO: no special exception here, handle mutle args for any function
-    if ( name == "Function" ){
-      argSt = args[args.length-1];
-    }else if ( args.length > 1 ){
-      let errtitle = "%c[EV] Error: %c%s%c Expected 1 argument, got %c%d"
-      let hl   = CONFIG.formats.title.highlight;
-      let dflt = CONFIG.formats.title.default;
-      console.groupCollapsed(
-        errtitle, dflt,
-        hl, name, dflt,
-        hl, args.length
-      );
-      console.dir(args);
-      console.groupCollapsed("trace:");
-      console.trace();
-      console.groupEnd("trace:");
-      console.groupEnd(errtitle);
-      return;
+  function invalidArgType(args, num){
+    let errtitle = "%c[EV] Error: %c%s%c Unexpected argument type, got %c%s"
+    let hl   = CONFIG.formats.title.highlight;
+    let dflt = CONFIG.formats.title.default;
+    let out = args[num] === null ? null : typeof(argSt);
+    console.groupCollapsed(
+      errtitle, dflt,
+      hl, name, dflt,
+      hl, out
+    );
+    console.groupCollapsed("args array:");
+    console.dir(args);
+    console.groupEnd("args array:");
+    console.groupCollapsed("trace:");
+    console.trace();
+    console.groupEnd("trace:");
+    console.groupEnd(errtitle);
+  }
+
+  /**
+  * Helper function to turn parsable arguments into nice strings
+  * @param {Object|string} arg Argument to be turned into a string
+  **/
+  function argToString(arg){
+    if ( typeof(arg) === "string" )
+      return arg
+    if (typeof(arg) === "object" )
+      return JSON.stringify(arg)
+    return "";
+  }
+
+  /**
+  * Parse all arguments in args array and return an object containg only valid
+  * argument indexes. Return has a .normal and .interest arrays.
+  *
+  * @param {Object}  args `arguments` object of hooked function
+  **/
+  function validateArgs(args){
+    let ret = {
+      normal: [],
+      interest: []
     }
-
-    if ( typeof( argSt ) !== "string" ){
-      let errtitle = "%c[EV] Error: %c%s%c Expected first argument of type string, got %c%s"
-      let hl   = CONFIG.formats.title.highlight;
-      let dflt = CONFIG.formats.title.default;
-      let out = args[0] === null ? null : typeof(argSt);
-      console.groupCollapsed(
-        errtitle, dflt,
-        hl, name, dflt,
-        hl, out
-      );
-      console.dir(args);
-      console.groupCollapsed("trace:");
-      console.trace();
-      console.groupEnd("trace:");
-      console.groupEnd(errtitle);
-      return;
-    }
-
-    if ( blacklistCheck(argSt) ) return;
-    var interest = highlightSearch(argSt, true);
-    var format = null;
-
-    if ( interest ) // set formating to interesting or title
-      format = CONFIG.formats.interesting;
-    else
-      format = CONFIG.formats.title;
-
-    // not interesting, and we don't care about uninsteresting
-    if ( !interest && !format.use ) return;
-
-    // inverse search? is this reasonable?
-    if ( interest && !format.use ) return;
-
-    // title display group
-    var titleGrp = "%c[EV] %c%s%c %s"
-    if ( format.open ){
-      console.group(
-        titleGrp, format.default, format.highlight, name, format.default,
-        location.href
-      );
-    }else{
-      console.groupCollapsed(
-        titleGrp, format.default, format.highlight, name, format.default,
-        location.href
-      );
-    }
-
-    // arg display
-    {
-      let argFormat = CONFIG.formats.args;
-      if ( argFormat.use ){
-        let argTitle = "%carg: "
-        if ( argFormat.open )
-          console.group(argTitle, argFormat.default);
-        else
-          console.groupCollapsed(argTitle, argFormat.default);
-        clog("%c%s", argFormat.highlight, argSt);
-        console.groupEnd(argTitle);
+    for (let i in args){
+      if (! ["string", "object"].includes(typeof(args[i]))){
+        invalidArgType(args, i);
+      }else if ( blacklistCheck(argToString(args[i])) ){
+        // blacklist match, don't parse
+      }else if ( highlightSearch(args[i], true) ){
+        ret.normal.push(+i);
+        ret.interest.push(+i);
+      }else{
+        ret.normal.push(+i);
       }
     }
+    return ret;
+  }
 
-    // do the interest printing
-    if ( interest ) highlightSearch(argSt, false);
+  function printTitle(name, format, num){
+    let titleGrp = "%c[EV] %c%s%c %s"
+    let func = console.group;
+    var values = [
+      format.default, format.highlight, name, format.default, location.href
+    ];
+
+    if ( ! format.open ) func = console.groupCollapsed;
+    if ( num >1 ){
+     // add arg number in format
+     titleGrp = "%c[EV] %c%s[%d]%c %s"
+     values.splice(3,0,num);
+    }
+    func(titleGrp, ...values)
+    return titleGrp;
+  }
+
+  /**
+  * Print all the arguments to the hooked funciton
+  *
+  * @param {Array} args array of arguments
+  * @param {Array} inedexes indexes of args that should be printed
+  **/
+  function printArgs(args, indexes) {
+    let argFormat = CONFIG.formats.args;
+    if ( ! argFormat.use ) return;
+    if ( indexes.length <= 0 ) return;
+    let argTitle = "%carg[%d/%d]: "
+    let func = argFormat ? console.group : console.groupCollapsed;
+
+    for (let i of indexes){
+      func(argTitle, argFormat.default, i+1, args.length);
+      clog("%c%s", argFormat.highlight, argToString(args[i]));
+      console.groupEnd(argTitle);
+    }
+  }
+
+  /**
+  * Print all the interesting arguments
+  *
+  * @param {Array} args array of arguments
+  * @param {Array} inedexes indexes of arg array that are interesting
+  **/
+  function printInteresting(args, indexes) {
+    for ( let i of indexes ){
+      highlightSearch(argToString(args[i]), false);
+    }
+  }
+
+  /**
+  * Parse all arguments for function `name` and pretty print them in the console
+  * @param {string} name Name of function that is being hooked
+  * @param {Array}  args array of arguments
+  **/
+  function EvalVillainHook(name, args){
+    let argObj = validateArgs(args);
+
+    // does this call have an interesting result?
+    let format = null;
+    if ( argObj.interest.length === 0 ){
+      format = CONFIG.formats.title;
+      if ( !format.use ) return;
+    }else{
+      format = CONFIG.formats.interesting;
+      if ( !format.use ) return;
+    }
+
+    let titleGrp = printTitle(name, format, args.length);
+    printArgs(args, argObj.normal);
+    printInteresting(args, argObj.interest);
 
     // stack display
+    // don't put this into a function, it will be one more thing on the call
+    // stack
     {
       let stackFormat = CONFIG.formats.stack;
       if ( stackFormat.use ){
