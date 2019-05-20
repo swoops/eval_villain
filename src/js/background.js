@@ -43,7 +43,7 @@ function checkStorage(){
       {
         "name" : "Small Stuff",
         "enabled" : true,
-        "pattern" : "/^\\s*\\S{0,3}\\s$/"
+        "pattern" : "/^\\s*\\S{0,3}\\s*$/"
       }
 
     ],
