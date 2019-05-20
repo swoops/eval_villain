@@ -350,14 +350,9 @@ var rewriter = function(CONFIG){
       } catch (err){
         hookErr(err, arguments, name);
       }
-      try {
-        return FF.prototype.apply.call(
-          orig, where, arguments
-        );
-      }catch (err){
-        hookErr(err, arguments, name);
-        clog("orig: ", orig);
-      }
+      return FF.prototype.apply.call(
+        orig, where, arguments
+      );
     }
 
     if ( name == "Function" ){
