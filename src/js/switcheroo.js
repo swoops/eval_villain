@@ -275,6 +275,7 @@ var rewriter = function(CONFIG){
     if ( argObj.interest.length === 0 ){
       format = CONFIG.formats.title;
       if ( !format.use ) return;
+      if ( argObj.normal.length === 0 ) return;
     }else{
       format = CONFIG.formats.interesting;
       if ( !format.use ) return;
