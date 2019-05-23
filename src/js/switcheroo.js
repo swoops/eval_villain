@@ -366,6 +366,12 @@ var rewriter = function(CONFIG){
 
     if ( name == "Function" ){
       // special case
+      console.warn(
+        "[EV] Hooking function 'Function'\n",
+        " This is a bad idea!\n",
+        " It can break unexpected things (Function.prototype for example).\n",
+        " I won't stop you, just expect trouble."
+      );
       where[leaf].prototype.bind = FF.prototype.bind;
       where[leaf].prototype.bind.apply = FF.prototype.bind.apply;
     }
@@ -384,7 +390,7 @@ var rewriter = function(CONFIG){
     }
   }
 
-  // hook first
+  // grab before hooking
   var uDec = decodeURI;
   var clog = console.log;
   var FF = Function;
