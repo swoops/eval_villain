@@ -240,9 +240,17 @@ var rewriter = function(CONFIG){
     let argFormat = CONFIG.formats.args;
     if ( ! argFormat.use ) return;
     if ( indexes.length <= 0 ) return;
-    let argTitle = "%carg[%d/%d]: "
-    let func = argFormat ? console.group : console.groupCollapsed;
+    let func = argFormat.open ? console.group : console.groupCollapsed;
 
+    if ( args.length === 1 ){
+      let argTitle ="%carg:";
+      func(argTitle, argFormat.default);
+      clog("%c%s", argFormat.highlight, argToString(args[0]));
+      console.groupEnd(argTitle);
+      return
+    }
+
+    let argTitle = "%carg[%d/%d]: "
     for (let i of indexes){
       func(argTitle, argFormat.default, i+1, args.length);
       clog("%c%s", argFormat.highlight, argToString(args[i]));
@@ -413,5 +421,4 @@ function inject_it(func, info){
 }
 
 inject_it(rewriter, config);
-
 // vim: set sw=2:ts=2:sts=2:ft=javascript:et
