@@ -201,9 +201,12 @@ var rewriter = function(CONFIG){
     for (let i in args){
       if (! ["string", "object"].includes(typeof(args[i]))){
         invalidArgType(args, i);
-      }else if ( blacklistCheck(argToString(args[i])) ){
+        continue;
+      }
+      let str = argToString(args[i]);
+      if ( blacklistCheck(str) ){
         // blacklist match, don't parse
-      }else if ( highlightSearch(args[i], true) ){
+      }else if ( highlightSearch(str, true) ){
         ret.normal.push(+i);
         ret.interest.push(+i);
       }else{
