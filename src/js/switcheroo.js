@@ -133,6 +133,8 @@ var rewriter = function(CONFIG){
           highlightWords("query", str, query);
         }else{
           // check for each query param,value
+          // TODO: Don't repeat search if two query params are the same
+          // TODO: use URL api
           for (let vars of query.split("&")){
             let needle = vars.split("=")[1];
             if ( needle && needle.length > 0  && needle.length >= 4){
