@@ -151,22 +151,28 @@ var rewriter = function(CONFIG){
           // entire query is in input
           if (quick) return true;
           highlightWords("query", str, query);
-        }else{
-          // check for each query param,value
-          // TODO: Don't repeat search if two query params are the same
-          for (let vars of query.split("&")){
-            let needle = vars.split("=")[1];
-            if ( needle && needle.length > 0  && needle.length >= 4){
-              let dec = decodeCheck(needle, str);
-              if (dec){
-                if ( quick ) return true;
-                highlightWords("query", str, dec, "[URL Decoded]");
-              } else if ( str.indexOf(needle) >= 0 ){
-                if ( quick ) return true;
-                highlightWords("query", str, needle);
-              } // str search for needle|urdecode(needle)
-            } // is param needle a reasonable len
-          } // vars loop
+        }else{ // check for each query param
+          let re = /[&\?](?:[^=]*)=([^&]*)/g;
+          let loop = 0;
+          let match = false;
+          let prev = [];
+          while (match = re.exec(query)){
+            if (loop++ > 200) {
+              console.warn("[EV] Loop larger then expected");
+              break;
+            }
+            let needle = match[1];
+            if ( !needle || needle.length <= 0 || prev.includes(needle)) continue;
+            prev.push(needle);
+            let dec = decodeCheck(needle, str);
+            if (dec){
+              if ( quick ) return true;
+              highlightWords("query", str, dec, "[URL Decoded]");
+            } else if ( str.indexOf(needle) >= 0 ){
+              if ( quick ) return true;
+              highlightWords("query", str, needle);
+            } // str search for needle|urdecode(needle)
+          } // loop over query params
         } // whole query found?
       } // is there a query?
     }
