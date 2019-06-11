@@ -84,8 +84,8 @@ var rewriter = function(CONFIG){
     function decodeCheck(needle, str){
       let arr = [];
       let dec = false;
-      let regex = /\+/g
-      let needleP = regex.test(needle) ? needle.replace(regex) : false;
+      let re = /\+/g;
+      let needleP = re.test(needle) ? needle.replace(re, ' ') : false;
       try {
         dec = uDec(needle);
         arr.push(dec);
