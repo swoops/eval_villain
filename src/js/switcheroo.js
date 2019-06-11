@@ -81,6 +81,30 @@ var rewriter = function(CONFIG){
       console.groupEnd(titleStr);
     } // end highlightWords
 
+    function decodeCheck(needle, str){
+      let arr = [];
+      let dec = false;
+      let regex = /\+/g
+      let needleP = regex.test(needle) ? needle.replace(regex) : false;
+      try {
+        dec = uDec(needle);
+        arr.push(dec);
+        if ( needleP ) arr.push(uDec(needleP));
+      } catch(_) {}
+      try {
+        dec = uDecC(needle);
+        arr.push(dec);
+        if ( needleP ) arr.push(uDecC(needleP));
+      } catch(_) {}
+
+      for (let i of arr){
+        if (str.indexOf(i) >= 0){
+          return i;
+        }
+      }
+      return false;
+    }
+
     var formats = CONFIG["formats"];
 
     // needle search
@@ -107,12 +131,8 @@ var rewriter = function(CONFIG){
     if ( formats.fragment.use ){
       let needle = location.hash.substring(1);
       if ( needle.length > 0  && needle.length >= 4 ){
-
-        let dec = false;
-        try { dec = uDec(needle); } // decodeURI can throw errors at times
-        catch { dec = false; }
-
-        if ( dec && dec != needle &&  str.indexOf(dec) >= 0 ){
+        let dec =  decodeCheck(needle, str) ;
+        if (dec){
           if ( quick ) return true;
           highlightWords("fragment", str, dec, "[URL Decoded]");
         }else if ( str.indexOf(needle) >= 0 ){
@@ -134,16 +154,11 @@ var rewriter = function(CONFIG){
         }else{
           // check for each query param,value
           // TODO: Don't repeat search if two query params are the same
-          // TODO: use URL api
           for (let vars of query.split("&")){
             let needle = vars.split("=")[1];
             if ( needle && needle.length > 0  && needle.length >= 4){
-
-              let dec = false;
-              try { dec = uDec(needle); } // decodeURI can throw errors at times
-              catch { dec = false; }
-
-              if ( dec && dec != needle &&  str.indexOf(dec) >= 0 ){
+              let dec = decodeCheck(needle, str);
+              if (dec){
                 if ( quick ) return true;
                 highlightWords("query", str, dec, "[URL Decoded]");
               } else if ( str.indexOf(needle) >= 0 ){
@@ -396,7 +411,8 @@ var rewriter = function(CONFIG){
   }
 
   // grab before hooking
-  var uDec = decodeURI;
+  var uDec  = decodeURI;
+  var uDecC = decodeURIComponent;
   var clog = console.log;
   var FF = Function;
   for (let name of CONFIG["functions"]) {
