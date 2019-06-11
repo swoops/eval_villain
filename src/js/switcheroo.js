@@ -142,7 +142,7 @@ var rewriter = function(CONFIG){
       }// length check
     }
 
-    // url param search
+    // query search
     if ( formats.query.use ){
       // entire query
       let query = window.location.search.substring(1);
@@ -162,7 +162,7 @@ var rewriter = function(CONFIG){
               break;
             }
             let needle = match[1];
-            if ( !needle || needle.length <= 0 || prev.includes(needle)) continue;
+            if ( !needle || needle.length <= 3 || prev.includes(needle)) continue;
             prev.push(needle);
             let dec = decodeCheck(needle, str);
             if (dec){
