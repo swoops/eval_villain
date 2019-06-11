@@ -145,8 +145,8 @@ var rewriter = function(CONFIG){
     // query search
     if ( formats.query.use ){
       // entire query
-      let query = window.location.search.substring(1);
-      if ( query.length > 0){
+      let query = window.location.search;
+      if ( query.length > 1){
         if ( str.indexOf(query) >= 0){
           // entire query is in input
           if (quick) return true;
