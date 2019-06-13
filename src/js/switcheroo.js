@@ -13,7 +13,7 @@ var rewriter = function(CONFIG){
   function highlightSearch(str, quick){
     /*
      * quickly check to see how interesting this input is so the title can be
-     * formated nicely
+     * formatted nicely
     */
     function highlightWords(sName, str, word, alt=false){
       var defColor = formats[sName].default;
@@ -64,7 +64,7 @@ var rewriter = function(CONFIG){
         others.push(holder);
       }
 
-      // pharrow it all to goether
+      // pharaoh it all to together
       let fmt = "%c%s".repeat(others.length*2-1);
       let args = [];
       let i=0;
@@ -82,25 +82,22 @@ var rewriter = function(CONFIG){
     } // end highlightWords
 
     function decodeCheck(needle, str){
-      let arr = [];
-      let dec = false;
       let re = /\+/g;
       let needleP = re.test(needle) ? needle.replace(re, ' ') : false;
-      try {
-        dec = uDec(needle);
-        arr.push(dec);
-        if ( needleP ) arr.push(uDec(needleP));
-      } catch(_) {}
-      try {
-        dec = uDecC(needle);
-        arr.push(dec);
-        if ( needleP ) arr.push(uDecC(needleP));
-      } catch(_) {}
 
-      for (let i of arr){
-        if (str.indexOf(i) >= 0){
-          return i;
-        }
+      if ( str.indexOf(needleP) >= 0 ) return needleP;
+
+      for (let func of [uDec, uDecC]){ // decodeURI, decodeURIComponent
+        try {
+          let dec = func(needle);
+          if ( dec == needle ) continue; // no difference, so skip
+          if (str.indexOf(dec) >= 0) return dec;
+          if ( needleP ){
+            let dec = func(needleP);
+            if (str.indexOf(dec) >= 0)
+              return dec;
+          }
+        }catch(_){ }
       }
       return false;
     }
