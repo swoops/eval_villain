@@ -23,7 +23,6 @@
 
 	"browser_action": {
 		"default_title": "EvalVillain: off",
-		"browser_style": true,
 		"default_icon": {
 			"48": "/icons/off_48.png",
 			"96": "/icons/off_96.pn"
@@ -32,7 +31,12 @@
 	},
 
 	"options_ui": {
-		"page": "/pages/options/options.html",
-		"browser_style": true
+		"page": "/pages/options/options.html"
+	},
+
+	"commands": {
+		"toggle": {
+			"description": "Toggle Eval Villain"
+		}
 	}
 }

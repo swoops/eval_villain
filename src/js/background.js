@@ -372,18 +372,26 @@ function removeScript(icon=true) {
   }
 }
 
+function toggleEV(){
+  if ( unreg ){
+    removeScript();
+    return new Promise(function(g,b){g(false)});
+  }else{
+    return register();
+  }
+}
+
+browser.commands.onCommand.addListener(function(command) {
+  if (command == "toggle") toggleEV();
+});
+
 function handleMessage(request, sender, sendResponse) {
   if ( request === "on?"){
     return new Promise(function(good, bad){
       good(unreg ? true : false);
     });
   }else if ( request === "toggle" ){
-    if ( unreg ){
-      removeScript();
-      return new Promise(function(g,b){g(false)});
-    }else{
-      return register();
-    }
+    return toggleEV();
   }else if ( request === "updated" ){
     if (unreg){
       return register();
