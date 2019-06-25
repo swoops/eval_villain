@@ -293,6 +293,13 @@ var rewriter = function(CONFIG){
     }
   }
 
+  class evProxy {
+    apply(target, thisArg, args){
+      EvalVillainHook(this.name, args);
+      return target.apply(thisArg, args)
+    }
+  }
+
   /**
   * Parse all arguments for function `name` and pretty print them in the console
   * @param {string} name Name of function that is being hooked
@@ -375,29 +382,9 @@ var rewriter = function(CONFIG){
       leaf = groups[i];
     }
 
-    var orig = where[leaf];
-    where[leaf] = function() {
-      try {
-        EvalVillainHook(name, arguments);
-      } catch (err){
-        hookErr(err, arguments, name);
-      }
-      return FF.prototype.apply.call(
-        orig, where, arguments
-      );
-    }
-
-    if ( name == "Function" ){
-      // special case
-      console.warn(
-        "[EV] Hooking function 'Function'\n",
-        " This is a bad idea!\n",
-        " It can break unexpected things (Function.prototype for example).\n",
-        " I won't stop you, just expect trouble."
-      );
-      where[leaf].prototype.bind = FF.prototype.bind;
-      where[leaf].prototype.bind.apply = FF.prototype.bind.apply;
-    }
+    let ep = new evProxy;
+    ep.name = name;
+    where[leaf] = new Proxy(where[leaf], ep);
   }
 
   function strToRegex(obj){
