@@ -10,7 +10,8 @@ var rewriter = function(CONFIG){
     }
     return false;
   }
-  function highlightSearch(str, quick){
+
+  function highlightSearch(str, quick, argNum){
     /*
      * quickly check to see how interesting this input is so the title can be
      * formatted nicely
@@ -18,8 +19,16 @@ var rewriter = function(CONFIG){
     function highlightWords(sName, str, word, alt=false){
       var defColor = formats[sName].default;
       var hiColor  = formats[sName].highlight;
-      var titleStr = "%c%s %c%s%c found";
-      let titleArgs = [ defColor, sName, hiColor, word, defColor ];
+      var titleStr = "%c%s: %c%s%c found";
+      let titleArgs = [
+        defColor, sName,
+        hiColor, word, defColor,
+      ];
+
+      if ( typeof(argNum) == 'number' ) {
+          titleStr += " (arg:%c%d%c)";
+          titleArgs.push(hiColor, argNum, defColor);
+      }
       if ( alt ){
         titleStr += " -> %c" + alt;
         titleArgs.push(hiColor);
@@ -177,13 +186,15 @@ var rewriter = function(CONFIG){
   }
 
   function invalidArgType(args, num){
-    let errtitle = "%c[EV] Error: %c%s%c Unexpected argument type, got %c%s"
+    let errtitle = "%c[EV] Error: %c%s%c Unexpected argument type for [%d], got %c%s"
     let hl   = CONFIG.formats.title.highlight;
     let dflt = CONFIG.formats.title.default;
-    let out = args[num] === null ? null : typeof(argSt);
+    if ( args[num]  === null ) out = null;
+    let out = args[num] === null ? null : typeof(args[num]);
     console.groupCollapsed(
       errtitle, dflt,
       hl, name, dflt,
+      num,
       hl, out
     );
     console.groupCollapsed("args array:");
@@ -204,36 +215,40 @@ var rewriter = function(CONFIG){
       return arg
     if (typeof(arg) === "object" )
       return JSON.stringify(arg)
-    return "";
+    return arg.toString();
   }
 
   /**
-  * Parse all arguments in args array and return an object containg only valid
-  * argument indexes. Return has a .normal and .interest arrays.
+  * Turn all arguments into strings and change record original type
   *
-  * @param {Object}  args `arguments` object of hooked function
-  **/
-  function validateArgs(args){
-    let ret = {
-      normal: [],
-      interest: []
-    }
+  * @param {Object} args `arugments` object of hooked function
+  */
+  function getArgs(args){
+    let ret = [];
+    let hasInterest = 0;
     for (let i in args){
-      if (! ["string", "object"].includes(typeof(args[i]))){
-        invalidArgType(args, i);
-        continue;
-      }
+      let t = typeof(args[i]);
+      let interest = false;
       let str = argToString(args[i]);
-      if ( blacklistCheck(str) ){
-        // blacklist match, don't parse
-      }else if ( highlightSearch(str, true) ){
-        ret.normal.push(+i);
-        ret.interest.push(+i);
-      }else{
-        ret.normal.push(+i);
+
+      if ( blacklistCheck(str) )
+        continue; // don't care
+      if ( highlightSearch(str, true) ) {
+        interest = true;
+        hasInterest += 1;
       }
+      ret.push({
+        "type": t,
+        "interest": interest,
+        "str" : str,
+        "num" : +i,
+      });
     }
-    return ret;
+    return {
+      "hasInterest": hasInterest,
+      "args" : ret,
+      "len" : args.length,
+    };
   }
 
   function printTitle(name, format, num){
@@ -259,24 +274,29 @@ var rewriter = function(CONFIG){
   * @param {Array} args array of arguments
   * @param {Array} inedexes indexes of args that should be printed
   **/
-  function printArgs(args, indexes) {
+  function printArgs(argObj) {
     let argFormat = CONFIG.formats.args;
     if ( ! argFormat.use ) return;
-    if ( indexes.length <= 0 ) return;
     let func = argFormat.open ? console.group : console.groupCollapsed;
 
-    if ( args.length === 1 ){
-      let argTitle ="%carg:";
-      func(argTitle, argFormat.default);
-      clog("%c%s", argFormat.highlight, argToString(args[0]));
+    if ( argObj.len === 1  && argObj.args.length == 1){
+      let arg = argObj.args[0];
+      let argTitle ="%carg(%s):";
+      let data = [
+        argFormat.default,
+        arg.type,
+      ];
+      func(argTitle, ...data);
+      clog("%c%s", argFormat.highlight, arg.str);
       console.groupEnd(argTitle);
       return
     }
 
-    let argTitle = "%carg[%d/%d]: "
-    for (let i of indexes){
-      func(argTitle, argFormat.default, i+1, args.length);
-      clog("%c%s", argFormat.highlight, argToString(args[i]));
+    let argTitle = "%carg[%d/%d](%s): "
+    let total = argObj.len;
+    for (let i of argObj.args){
+      func(argTitle, argFormat.default, i.num+1, total, i.type);
+      clog("%c%s", argFormat.highlight, i.str);
       console.groupEnd(argTitle);
     }
   }
@@ -287,17 +307,15 @@ var rewriter = function(CONFIG){
   * @param {Array} args array of arguments
   * @param {Array} inedexes indexes of arg array that are interesting
   **/
-  function printInteresting(args, indexes) {
-    for ( let i of indexes ){
-      highlightSearch(argToString(args[i]), false);
+  function printInteresting(argObj) {
+    if ( ! argObj.hasInterest ) return;
+    if ( argObj.len == 1 ){
+        highlightSearch(argObj.args[0].str, false);
+        return;
     }
-  }
-
-  class evProxy {
-    apply(target, thisArg, args){
-      EvalVillainHook(this.name, args);
-      return Reflect.apply(target, thisArg, args);
-    }
+    for ( let i of argObj.args )
+      if ( i.interest )
+        highlightSearch(i.str, false, i.num);
   }
 
   /**
@@ -306,22 +324,22 @@ var rewriter = function(CONFIG){
   * @param {Array}  args array of arguments
   **/
   function EvalVillainHook(name, args){
-    let argObj = validateArgs(args);
+    let argObj = getArgs(args);
 
     // does this call have an interesting result?
     let format = null;
-    if ( argObj.interest.length === 0 ){
-      format = CONFIG.formats.title;
-      if ( !format.use ) return;
-      if ( argObj.normal.length === 0 ) return;
-    }else{
+    if ( argObj.hasInterest ){
       format = CONFIG.formats.interesting;
       if ( !format.use ) return;
+    }else{
+      format = CONFIG.formats.title;
+      if ( !format.use ) return;
+      if ( argObj.args.length == 0 ) return;
     }
 
-    let titleGrp = printTitle(name, format, args.length);
-    printArgs(args, argObj.normal);
-    printInteresting(args, argObj.interest);
+    let titleGrp = printTitle(name, format, argObj.len);
+    printArgs(argObj);
+    printInteresting(argObj);
 
     // stack display
     // don't put this into a function, it will be one more thing on the call
@@ -342,6 +360,13 @@ var rewriter = function(CONFIG){
     console.groupEnd(titleGrp);
     return ;
   } // end EvalVillainHook
+
+  class evProxy {
+    apply(target, thisArg, args){
+      EvalVillainHook(this.name, args);
+      return Reflect.apply(target, thisArg, args);
+    }
+  }
 
   /*
    * NOTICE:
