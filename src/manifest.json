@@ -25,7 +25,7 @@
 		"default_title": "EvalVillain: off",
 		"default_icon": {
 			"48": "/icons/off_48.png",
-			"96": "/icons/off_96.pn"
+			"96": "/icons/off_96.png"
 		},
 		"default_popup": "/pages/popup/menu.html"
 	},
