@@ -7,9 +7,9 @@ eval, and warn you of their use.
 
 Get it from: https://addons.mozilla.org/en-US/firefox/addon/eval-villain/
 
-Alternativly, you can load it temporarily in debug mode. Clone the repo
+Alternatively, you can load it temporarily in debug mode. Clone the repo
 locally. Then go to "about:debugging" in Firefox. Click "Load Temporary
-Add-on". A file browser will appear. Select any file in the `src` direcory.
+Add-on". A file browser will appear. Select any file in the `src` directory.
 
 ## Normal use
 Turn it on, open the console `ctrl+shift+i` and browse some sites like normal.
@@ -131,8 +131,8 @@ looks good. Open the console and click the "test" button in the configuration
 page. If you like the console output then click save to keep it.
 
 ## Todo:
+* Enable/Disable arg types (show strings, don't show int's)
 * Update interesting results title with the reasons it is interesting
-* Make custom format for params that are URL decoded?
 * Prohibit hooking of functions used in hooking code to avoid infinite
   recursion.
 * If the config page is already open, go to that page instead of a new tab (may
