@@ -1,4 +1,4 @@
-configList = ["targets", "needles", "blacklist", "functions", "autoOpen", "onOff"];
+configList = ["targets", "needles", "blacklist", "functions", "autoOpen", "onOff", "types"];
 function updateToggle(on){
   if (typeof(on) !== "boolean"){
     console.error("unexpected message type");
@@ -124,7 +124,7 @@ function listener(ev) {
     }
   }
 
-  if ( ["h1-functions", "h1-targets", "h1-enable",  "h1-autoOpen", "h1-onOff", "h1-blacklist",  "h1-needles"].indexOf(id) >= 0 ){
+  if ( ["h1-functions", "h1-targets", "h1-enable",  "h1-autoOpen", "h1-onOff", "h1-blacklist",  "h1-needles", "h1-types"].indexOf(id) >= 0 ){
     let sub = id.substr(3);
     let formats = document.getElementById(sub);
     formats.classList.toggle('closed');

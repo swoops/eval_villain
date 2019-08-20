@@ -2,7 +2,7 @@ var unreg = null;
 var debug = false;
 
 // used to get all the configuration options that are kept in storage
-allStorage = [ "formats", "targets", "needles", "blacklist", "functions", "autoOpen", "onOff"];
+allStorage = [ "formats", "targets", "needles", "blacklist", "functions", "autoOpen", "onOff", "types"];
 
 function debugLog(){
   if (! debug ) return;
@@ -129,6 +129,37 @@ function checkStorage(){
           "enabled": true
       }
     ],
+    "types" : [
+      {
+        "name": "string",
+        "patern": "string",
+        "enabled": true
+      }, {
+        "name": "object",
+        "patern": "object",
+        "enabled": false
+      }, {
+        "name": "function",
+        "patern": "function",
+        "enabled": false
+      }, {
+        "name": "number",
+        "patern": "number",
+        "enabled": false
+      }, {
+        "name": "boolean",
+        "patern": "boolean",
+        "enabled": false
+      }, {
+        "name": "undefined",
+        "patern": "undefined",
+        "enabled": false
+      }, {
+        "name": "symbol",
+        "patern": "symbol",
+        "enabled": false
+      }
+    ],
     "formats": {
       "title" : {
         "pretty"    : "Normal Results",
@@ -244,7 +275,9 @@ async function register() {
       // target stuff
       for (let targ of result.targets){
         if ( targ.enabled ){
-          if (/^(https?|wss?|file|ftp|\*):\/\/(\*|\*\.[^|)}>#]+|[^|)}>#]+)\/.*$/.test(targ.pattern) ){
+          if (
+            /^(https?|wss?|file|ftp|\*):\/\/(\*|\*\.[^|)}>#]+|[^|)}>#]+)\/.*$/.test(targ.pattern)
+          ){
             match.push(targ.pattern);
           }else{
             console.error(
@@ -293,7 +326,7 @@ async function register() {
         }
       }
 
-      // enabled/disable values
+      // onOff values
       for (let i of result.onOff){
         if ( config.formats[i.pattern] ){
           config.formats[i.pattern].use = i.enabled
@@ -301,6 +334,12 @@ async function register() {
           console.warn("uknown onOff pattern: %s, name: %s", i.pattern, i.name);
         }
       }
+
+      // types list of enabled types
+      config.types = [];
+      for (let i of result.types)
+        if ( i.enabled )
+          config.types.push(i.patern);
 
       // functions stuff
       {

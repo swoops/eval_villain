@@ -185,20 +185,18 @@ var rewriter = function(CONFIG){
     return false;
   }
 
-  function invalidArgType(args, num){
+  function invalidArgType(arg, num, argType){
     let errtitle = "%c[EV] Error: %c%s%c Unexpected argument type for [%d], got %c%s"
     let hl   = CONFIG.formats.title.highlight;
     let dflt = CONFIG.formats.title.default;
-    if ( args[num]  === null ) out = null;
-    let out = args[num] === null ? null : typeof(args[num]);
     console.groupCollapsed(
       errtitle, dflt,
       hl, name, dflt,
       num,
-      hl, out
+      hl, argType
     );
-    console.groupCollapsed("args array:");
-    console.dir(args);
+    console.group("args:");
+    console.dir(arg);
     console.groupEnd("args array:");
     console.groupCollapsed("trace:");
     console.trace();
@@ -219,6 +217,32 @@ var rewriter = function(CONFIG){
   }
 
   /**
+  * Returns the type of an argument. Returns null if the argument should be
+  * skipped.
+  * @param arg Argument to have it's type checked
+  */
+  function typeCheck(arg){
+    let knownTypes = [
+      "function", "string", "number", "object", "undefined", "boolean",
+      "symbol"
+    ];
+    let t = typeof(arg);
+
+    // sanity
+    if ( ! knownTypes.includes(t) ){
+      invalidArgType(args[i], +i, t);
+      return t;
+    }
+
+    // configured to not check
+    if (! CONFIG.types.includes(t)){
+      return null;
+    }
+
+    return t;
+  }
+
+  /**
   * Turn all arguments into strings and change record original type
   *
   * @param {Object} args `arugments` object of hooked function
@@ -226,13 +250,16 @@ var rewriter = function(CONFIG){
   function getArgs(args){
     let ret = [];
     let hasInterest = 0;
+
     for (let i in args){
-      let t = typeof(args[i]);
+      let t = typeCheck(args[i]);
+      if (t === null) continue;
       let interest = false;
       let str = argToString(args[i]);
 
       if ( blacklistCheck(str) )
         continue; // don't care
+
       if ( highlightSearch(str, true) ) {
         interest = true;
         hasInterest += 1;
@@ -437,6 +464,7 @@ var rewriter = function(CONFIG){
   strToRegex(CONFIG.needles);
   strToRegex(CONFIG.blacklist);
 
+  console.dir(CONFIG);
   clog("%c[EV]%c Functions hooked for %c%s%c",
     CONFIG.formats.interesting.highlight,
     CONFIG.formats.interesting.default,

@@ -131,7 +131,6 @@ looks good. Open the console and click the "test" button in the configuration
 page. If you like the console output then click save to keep it.
 
 ## Todo:
-* Enable/Disable arg types (show strings, don't show int's)
 * Update interesting results title with the reasons it is interesting
 * Prohibit hooking of functions used in hooking code to avoid infinite
   recursion.
