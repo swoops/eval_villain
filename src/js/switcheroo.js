@@ -464,7 +464,6 @@ var rewriter = function(CONFIG){
   strToRegex(CONFIG.needles);
   strToRegex(CONFIG.blacklist);
 
-  console.dir(CONFIG);
   clog("%c[EV]%c Functions hooked for %c%s%c",
     CONFIG.formats.interesting.highlight,
     CONFIG.formats.interesting.default,
