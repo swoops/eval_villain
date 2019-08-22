@@ -73,7 +73,7 @@ function checkStorage(){
           "pattern": "title",
           "enabled": false
       }, {
-          "name": "Intresting Results",
+          "name": "Interesting Results",
           "pattern": "interesting",
           "enabled": true
       }, {
