@@ -3,7 +3,7 @@
 This is a web extension for Firefox that will hook dangerous functions, like
 eval, and warn you of their use.
 
-[EV Console Screen Capture](./ss.png?raw=true "EV Console Screen Capture")
+![EV Console Screen Capture](./ss.png?raw=true)
 
 ## Why
 
