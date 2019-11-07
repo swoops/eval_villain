@@ -41,7 +41,7 @@ var rewriter = function(CONFIG){
 
       let others = [];
       let matches = [];
-      if ( !word.test ){
+      if ( typeof(word) === "string" ){
         // normal substring search
         others = str.split(word);
         for (let i=0; i<others.length-1; i++){
