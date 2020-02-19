@@ -1,186 +1,14 @@
 var rewriter = function(CONFIG){
+  this.search = [];
   function blacklistCheck(str){
     for (let needle of CONFIG.blacklist){
-      if ( needle.test ){ // regex
+      if ( typeof(needle) === "string" ){
+        if ( needle.length > 0 &&  str.indexOf(needle) >= 0 )
+          return true;
+      } else { // regex
         needle.lastIndex = 0;
         if ( needle.test(str) ) return true;
-      }else if ( needle.length > 0 ){
-        if ( str.indexOf(needle) >= 0 ) return true;
       }
-    }
-    return false;
-  }
-
-  function highlightSearch(str, quick, argNum){
-    /*
-     * quickly check to see how interesting this input is so the title can be
-     * formatted nicely
-    */
-    function highlightWords(sName, str, word, alt=false){
-      var defColor = formats[sName].default;
-      var hiColor  = formats[sName].highlight;
-      var titleStr = "%c%s: %c%s%c found";
-      let titleArgs = [
-        defColor, sName,
-        hiColor, word, defColor,
-      ];
-
-      if ( typeof(argNum) == 'number' ) {
-          titleStr += " (arg:%c%d%c)";
-          titleArgs.push(hiColor, argNum, defColor);
-      }
-      if ( alt ){
-        titleStr += " -> %c" + alt;
-        titleArgs.push(hiColor);
-      }
-
-      if ( formats[sName].open )
-        console.group(titleStr, ...titleArgs);
-      else
-        console.groupCollapsed(titleStr, ...titleArgs);
-
-      let others = [];
-      let matches = [];
-      if ( typeof(word) === "string" ){
-        // normal substring search
-        others = str.split(word);
-        for (let i=0; i<others.length-1; i++){
-          matches.push(word);
-        }
-      }else if (word.global == false){
-        // not global regex, so just split into two on first
-        let m = word.exec(str)[0];
-        matches.push(m);
-        others.push(str.substr(0, str.indexOf(m)));
-        others.push(str.substr(str.indexOf(m)+m.length));
-      }else{
-        let holder = str;
-        let match = null;
-        word.lastIndex = 0;
-        let prevLast = 0;
-
-        while ((match = word.exec(str)) != null){
-          let m = match[0];
-          matches.push(m);
-          others.push(holder.substr(0, holder.indexOf(m)));
-          holder = holder.substr(holder.indexOf(m)+m.length);
-          if ( prevLast >= word.lastIndex ) {
-            console.warn("[EV] Attempting to highlight matches for this regex will cause infinite loop, stopping")
-            break;
-          }
-          prevLast = word.lastIndex;
-        }
-        others.push(holder);
-      }
-
-      // pharaoh it all to together
-      let fmt = "%c%s".repeat(others.length*2-1);
-      let args = [];
-      let i=0;
-      for (; i<matches.length; i++){
-        args.push(defColor);
-        args.push(others[i]);
-        args.push(hiColor);
-        args.push(matches[i]);
-      }
-      args.push(defColor);
-      args.push(others[i++]);
-      clog(fmt, ...args);
-
-      console.groupEnd(titleStr);
-    } // end highlightWords
-
-    function decodeCheck(needle, str){
-      let re = /\+/g;
-      let needleP = re.test(needle) ? needle.replace(re, ' ') : false;
-
-      if ( str.indexOf(needleP) >= 0 ) return needleP;
-
-      for (let func of [uDec, uDecC]){ // decodeURI, decodeURIComponent
-        try {
-          let dec = func(needle);
-          if ( dec == needle ) continue; // no difference, so skip
-          if (str.indexOf(dec) >= 0) return dec;
-          if ( needleP ){
-            let dec = func(needleP);
-            if (str.indexOf(dec) >= 0)
-              return dec;
-          }
-        }catch(_){ }
-      }
-      return false;
-    }
-
-    var formats = CONFIG["formats"];
-
-    // needle search
-    if ( formats.needle.use ){
-      for (let needle of CONFIG["needles"]){
-
-        // regex
-        if ( needle.test && needle.test(str)){
-          // make sure each call works, thanks js and thanks:
-          // https://stackoverflow.com/questions/2630418/javascript-regex-returning-true-then-false-then-true-etc
-          needle.lastIndex=0;
-          if ( quick ) return true;
-          highlightWords("needle", str, needle);
-        }
-
-        if ( str.indexOf(needle) >= 0){
-          if ( quick ) return true;
-          highlightWords("needle", str, needle);
-        }
-      }
-    }
-
-    // url fragment search
-    if ( formats.fragment.use ){
-      let needle = location.hash.substring(1);
-      if ( needle.length > 0  && needle.length >= 4 ){
-        let dec =  decodeCheck(needle, str) ;
-        if (dec){
-          if ( quick ) return true;
-          highlightWords("fragment", str, dec, "[URL Decoded]");
-        }else if ( str.indexOf(needle) >= 0 ){
-          if ( quick ) return true;
-          highlightWords("fragment", str, needle);
-        }
-      }// length check
-    }
-
-    // query search
-    if ( formats.query.use ){
-      // entire query
-      let query = window.location.search;
-      if ( query.length > 1){
-        if ( str.indexOf(query) >= 0){
-          // entire query is in input
-          if (quick) return true;
-          highlightWords("query", str, query);
-        }else{ // check for each query param
-          let re = /[&\?](?:[^=]*)=([^&]*)/g;
-          let loop = 0;
-          let match = false;
-          let prev = [];
-          while (match = re.exec(query)){
-            if (loop++ > 200) {
-              console.warn("[EV] Loop larger then expected");
-              break;
-            }
-            let needle = match[1];
-            if ( !needle || needle.length <= 3 || prev.includes(needle)) continue;
-            prev.push(needle);
-            let dec = decodeCheck(needle, str);
-            if (dec){
-              if ( quick ) return true;
-              highlightWords("query", str, dec, "[URL Decoded]");
-            } else if ( str.indexOf(needle) >= 0 ){
-              if ( quick ) return true;
-              highlightWords("query", str, needle);
-            } // str search for needle|urdecode(needle)
-          } // loop over query params
-        } // whole query found?
-      } // is there a query?
     }
     return false;
   }
@@ -254,25 +82,18 @@ var rewriter = function(CONFIG){
     for (let i in args){
       let t = typeCheck(args[i]);
       if (t === null) continue;
-      let interest = false;
       let str = argToString(args[i]);
 
       if ( blacklistCheck(str) )
         continue; // don't care
 
-      if ( highlightSearch(str, true) ) {
-        interest = true;
-        hasInterest += 1;
-      }
       ret.push({
         "type": t,
-        "interest": interest,
         "str" : str,
         "num" : +i,
       });
     }
     return {
-      "hasInterest": hasInterest,
       "args" : ret,
       "len" : args.length,
     };
@@ -327,22 +148,141 @@ var rewriter = function(CONFIG){
       console.groupEnd(argTitle);
     }
   }
+  function zebraBuild(arr, fmt1, fmt2){
+    let fmt = "%c%s".repeat(arr.length);
+    let args = [];
+    for (var i=0; i<arr.length; i++){
+      args.push(arguments[1+(i%2)]);
+      args.push(arr[i]);
+    }
+    args.unshift(fmt);
+    return args;
+  }
+
+  function zebraLog(arr, fmt1, fmt2){
+    clog(...zebraBuild(arr,fmt1,fmt2));
+  }
+
+  function zebraGroup(arr, fmt1, fmt2, open){
+    let a = zebraBuild(arr,fmt1,fmt2);
+    let f = open ? console.group : console.groupCollapsed;
+    f(...a);
+    return a[0];
+  }
 
   /**
-  * Print all the interesting arguments
+  * Check interest and get printers for each interesting result
   *
   * @param {Array} args array of arguments
   * @param {Array} inedexes indexes of arg array that are interesting
   **/
-  function printInteresting(argObj) {
-    if ( ! argObj.hasInterest ) return;
-    if ( argObj.len == 1 ){
-        highlightSearch(argObj.args[0].str, false);
-        return;
+  function getInterest(argObj) {
+    let ret = [];
+    function highlightWords(sName, str, word, alt=false){
+      var defColor = formats[sName].default;
+      var hiColor  = formats[sName].highlight;
+      var titleStr = "%c%s: %c%s%c found";
+      let titleArgs = [
+        defColor, sName,
+        hiColor, word, defColor,
+      ];
+
+      if ( typeof(argNum) == 'number' ) {
+          titleStr += " (arg:%c%d%c)";
+          titleArgs.push(hiColor, argNum, defColor);
+      }
+      if ( alt ){
+        titleStr += " -> %c" + alt;
+        titleArgs.push(hiColor);
+      }
+
+      if ( formats[sName].open )
+        console.group(titleStr, ...titleArgs);
+      else
+        console.groupCollapsed(titleStr, ...titleArgs);
+    } // end highlightWords
+
+    function hlSlice(str, needle){
+      let ret = [];
+      if ( typeof(needle) === "string" ){
+        str.split(needle).forEach((x,index,arr)=> {
+          ret.push(x)
+          if (index != arr.length-1) ret.push(needle)
+        });
+      }else if (needle.global == false){
+        // not global regex, so just split into two on first
+        needle.lastIndex = 0;
+        let m = needle.exec(str)[0];
+        str.split(m).forEach(x=>ret.push(x,m));
+        console.log(ret);
+      }else{
+        let holder = str;
+        let match = null;
+        needle.lastIndex = 0;
+        let prevLast = 0;
+
+        while ((match = needle.exec(str)) != null){
+          let m = match[0];
+          ret.push(holder.substr(0, holder.indexOf(m)));
+          ret.push(m);
+          holder = holder.substr(holder.indexOf(m)+m.length);
+          if ( prevLast >= needle.lastIndex ) {
+            console.warn("[EV] Attempting to highlight matches for this regex will cause infinite loop, stopping")
+            break;
+          }
+          prevLast = needle.lastIndex;
+        }
+        ret.push(holder);
+      }
+      return ret;
+
     }
-    for ( let i of argObj.args )
-      if ( i.interest )
-        highlightSearch(i.str, false, i.num);
+
+    function testit(str, needle){
+      if (typeof(str) !== "string") {
+        console.error(`str(${str}) must be string not ${typeof(str)}`);
+        return false;
+      }
+      if ( typeof(needle) === "string" ){
+        if ( str.includes(needle) ){
+          return true;
+        }
+      }else{
+        if ( needle.test(str) ){
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function printer(s, arg){
+      let title = [s.name+": ", s.search];
+      if ( argObj.len > 1 )
+        title.push(" found (arg:", arg.num, ")");
+      else
+        title.push(" found");
+
+      if ( s.decode )
+        title.push(" -> ", "[URL Decoded]");
+
+      let end = zebraGroup(
+        title,
+        s.format.default, s.format.highlight,
+        s.format.open
+      );
+      let ar = hlSlice(arg.str, s.search);
+      zebraLog(ar, s.format.default, s.format.highlight);
+      console.groupEnd(end);
+    }
+
+    for ( let arg of argObj.args ){
+      for ( let s of this.search ){
+        if ( ! testit(arg.str, s.search) ) continue;
+        ret.push(()=>printer(s,arg));
+      }
+    }
+
+    return ret;
   }
 
   /**
@@ -355,7 +295,9 @@ var rewriter = function(CONFIG){
 
     // does this call have an interesting result?
     let format = null;
-    if ( argObj.hasInterest ){
+    let printers = getInterest(argObj);
+
+    if ( printers.length > 0 ){
       format = CONFIG.formats.interesting;
       if ( !format.use ) return;
     }else{
@@ -366,7 +308,9 @@ var rewriter = function(CONFIG){
 
     let titleGrp = printTitle(name, format, argObj.len);
     printArgs(argObj);
-    printInteresting(argObj);
+
+    // print all intereresting reuslts
+    printers.forEach(x=>x());
 
     // stack display
     // don't put this into a function, it will be one more thing on the call
@@ -452,9 +396,114 @@ var rewriter = function(CONFIG){
     }
   }
 
+  function buildSearches(){
+    function getDecoded(needle){
+      // returns array of strings of various "decodings"
+      let ret = [];
+      let re = /\+/g;
+      let needleP = re.test(needle) ? needle.replace(re, ' ') : false;
+      for (let func of [decodeURI, decodeURIComponent]){
+        try {
+          let dec = func(needle);
+          if ( dec == needle ) continue; // no difference, so skip
+          if ( ret.includes(dec) ) continue;
+          ret.push(dec);
+          console.log(dec);
+          if ( needleP ){
+            let dec = func(needleP);
+            if ( dec == needleP ) continue;
+            if ( ret.includes(dec) ) continue;
+            ret.push(dec);
+            console.log(dec);
+          }
+        }catch(_){ }
+      }
+      return ret;
+    }
+
+    var formats = CONFIG["formats"];
+    /*
+    // window.name
+    if ( window.name !== '' ) {
+      this.search.push({
+        name:"original window name",
+        search: window.name,
+        format: CONFIG.formats["needle"],
+        decode=false
+      });
+    }
+    */
+
+    // needles
+    if ( formats.needle.use ){
+      for (let needle of CONFIG["needles"]){
+        this.search.push({
+          name:"needle",
+          search: needle,
+          format: CONFIG.formats["needle"],
+          decode: false,
+        });
+      }
+    }
+
+    // fragment
+    if ( formats.fragment.use ){
+      let needle = location.hash.substring(1);
+      if ( needle.length > 3 ){
+        this.search.push({
+          name:   "fragment",
+          search: needle,
+          format: CONFIG.formats["fragment"],
+          decode: false,
+        });
+        for (let n of getDecoded(needle)){
+          this.search.push({
+            name:   "fragment",
+            search: needle,
+            format: CONFIG.formats["fragment"],
+            decode: true,
+          });
+        }
+      }
+    }
+
+    // query string
+    if ( formats.query.use ){
+      // entire query
+      let query = window.location.search;
+      if ( query.length > 1){
+        let re = /[&\?]([^=]*)=([^&]*)/g;
+        let loop = 0;
+        let match = false;
+        let prev = [];
+        while (match = re.exec(query)){
+          if (loop++ > 200) {
+            console.warn("[EV] More then 200 parameters?");
+            break;
+          }
+          let param = match[1];
+          let needle = match[2];
+          if ( needle.length < 4 ) continue;
+          this.search.push({
+            name:   `query[${param}]`,
+            search: needle,
+            format: CONFIG.formats["query"],
+            decode: true,
+          });
+          for (let n of getDecoded(needle)){
+            this.search.push({
+              name:   `query[${param}]`,
+              search: n,
+              format: CONFIG.formats["query"],
+              decode: true,
+            });
+          } // END decoded for loop
+        } // while regex loop
+      } // if query.length
+    }
+  }
+
   // grab before hooking
-  var uDec  = decodeURI;
-  var uDecC = decodeURIComponent;
   var clog = console.log;
   var FF = Function;
   for (let name of CONFIG["functions"]) {
@@ -463,7 +512,10 @@ var rewriter = function(CONFIG){
 
   strToRegex(CONFIG.needles);
   strToRegex(CONFIG.blacklist);
+  buildSearches(); // must be after needles are turned to regex
 
+  // TODO: add configurable window.name formats
+  CONFIG.formats["window.name"] = CONFIG.formats["needle"];
   clog("%c[EV]%c Functions hooked for %c%s%c",
     CONFIG.formats.interesting.highlight,
     CONFIG.formats.interesting.default,
@@ -471,6 +523,8 @@ var rewriter = function(CONFIG){
     document.domain,
     CONFIG.formats.interesting.default
   );
+
+  // building list of search stuff
 }
 
 /*
