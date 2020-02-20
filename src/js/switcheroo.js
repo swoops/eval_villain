@@ -214,7 +214,6 @@ var rewriter = function(CONFIG){
         needle.lastIndex = 0;
         let m = needle.exec(str)[0];
         str.split(m).forEach(x=>ret.push(x,m));
-        console.log(ret);
       }else{
         let holder = str;
         let match = null;
@@ -239,10 +238,6 @@ var rewriter = function(CONFIG){
     }
 
     function testit(str, needle){
-      if (typeof(str) !== "string") {
-        console.error(`str(${str}) must be string not ${typeof(str)}`);
-        return false;
-      }
       if ( typeof(needle) === "string" ){
         if ( str.includes(needle) ){
           return true;
@@ -263,7 +258,7 @@ var rewriter = function(CONFIG){
         title.push(" found");
 
       if ( s.decode )
-        title.push(" -> ", "[URL Decoded]");
+        title.push("", " -> ", "[URL Decoded]");
 
       let end = zebraGroup(
         title,
@@ -274,6 +269,7 @@ var rewriter = function(CONFIG){
       zebraLog(ar, s.format.default, s.format.highlight);
       console.groupEnd(end);
     }
+
 
     for ( let arg of argObj.args ){
       for ( let s of this.search ){
@@ -408,13 +404,11 @@ var rewriter = function(CONFIG){
           if ( dec == needle ) continue; // no difference, so skip
           if ( ret.includes(dec) ) continue;
           ret.push(dec);
-          console.log(dec);
           if ( needleP ){
             let dec = func(needleP);
             if ( dec == needleP ) continue;
             if ( ret.includes(dec) ) continue;
             ret.push(dec);
-            console.log(dec);
           }
         }catch(_){ }
       }
@@ -422,17 +416,16 @@ var rewriter = function(CONFIG){
     }
 
     var formats = CONFIG["formats"];
-    /*
+
     // window.name
-    if ( window.name !== '' ) {
+    if ( typeof(window.name) === "string" && window.name.length > 0 ) {
       this.search.push({
-        name:"original window name",
+        name:   "window.name",
         search: window.name,
         format: CONFIG.formats["needle"],
-        decode=false
+        decode: false,
       });
     }
-    */
 
     // needles
     if ( formats.needle.use ){
@@ -459,7 +452,7 @@ var rewriter = function(CONFIG){
         for (let n of getDecoded(needle)){
           this.search.push({
             name:   "fragment",
-            search: needle,
+            search: n,
             format: CONFIG.formats["fragment"],
             decode: true,
           });
@@ -488,7 +481,7 @@ var rewriter = function(CONFIG){
             name:   `query[${param}]`,
             search: needle,
             format: CONFIG.formats["query"],
-            decode: true,
+            decode: false,
           });
           for (let n of getDecoded(needle)){
             this.search.push({
