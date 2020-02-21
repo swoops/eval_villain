@@ -34,7 +34,7 @@ called, a notification will appear in the console. If it is of particular
 interest it will be highlighted and formatted more strongly.
 
 Check out the video above to see it being used. I would start
-[here](https://vimeo.com/365789766#t=3:55). 
+[here](https://vimeo.com/365789766#t=3:55).
 
 ## Some Terminology
 You can probably skip this, if you don't understand how I use a term later,
@@ -46,7 +46,7 @@ come back.
   potential user input is found then the notification produced will be a normal
   result.
 * Interesting Result: Output from EV that is considered of higher priority.
-* popup: The popup is the menu that appears when you click the EV icon. 
+* popup: The popup is the menu that appears when you click the EV icon.
 * Configuration page: This is the page where the bulk of the configuration can
   be done. It can be reached by clicking "configure" in the popup menu, or in
   the options page.
@@ -54,7 +54,7 @@ come back.
 
 ## Configuration Options
 **Important**: You must refresh the web page you are testing after every single
-configuration change for that change to take affect. 
+configuration change for that change to take affect.
 
 EV works by injecting a script into the page *at load time*. To limit the
 potential for a visited site to attack EV, EV does not have any further
@@ -94,9 +94,9 @@ A regular expression can be used as a pattern for Needles and Blacklists. A
 regular expression should always start with a "/" and end with a "/",
 potentially followed by the "g" and "i" flags. On the configuration page, any
 pattern considered by EV to be a regular expression will receive a brighter
-color for it's font. 
+color for it's font.
 
-Internally EV uses JavaScript's RegEx implementation. 
+Internally EV uses JavaScript's RegEx implementation.
 
 Tips:
 * Dev RegEx in the console:
@@ -122,7 +122,7 @@ functions can be configured.
 
 ### Enable/Disable (popup only)
 An entire feature can be disabled via this menu. One might disable "Query
-Search" if it is producing too many false positives. 
+Search" if it is producing too many false positives.
 
 Tip:
 * Disable "Normal Results" and enable "Interesting Results" to cut down on
@@ -144,7 +144,7 @@ Tip:
 Console output is split up into various sections. Each section has a
 highlighting format and a default format. Default is used for most the text
 while highlight is used to highlight key words. The "Console Colors" section of
-the configuration page allows you to configure arbitrary CSS for each format. 
+the configuration page allows you to configure arbitrary CSS for each format.
 
 Before saving your changes be sure to test your configuration to see if it
 looks good. Open the console and click the "test" button in the configuration

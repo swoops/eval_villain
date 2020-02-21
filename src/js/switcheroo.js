@@ -234,7 +234,6 @@ var rewriter = function(CONFIG){
         ret.push(holder);
       }
       return ret;
-
     }
 
     function testit(str, needle){
@@ -270,14 +269,28 @@ var rewriter = function(CONFIG){
       console.groupEnd(end);
     }
 
-
+    // values that change without redirect
+    let latestTest = getChangingSearch();
     for ( let arg of argObj.args ){
       for ( let s of this.search ){
+        for (let test of latestTest){
+          if (test.name === s.name && test.search === s.search ){
+            latestTest.delete(test);
+          }
+        }
         if ( ! testit(arg.str, s.search) ) continue;
         ret.push(()=>printer(s,arg));
       }
     }
 
+    // search for new things
+    for (let test of latestTest){
+      this.search.push(test);
+      for (let arg of argObj.args){
+        if ( ! testit(arg.str, test.search) ) continue;
+        ret.push(()=>printer(test,arg));
+      }
+    }
     return ret;
   }
 
@@ -288,6 +301,7 @@ var rewriter = function(CONFIG){
   **/
   function EvalVillainHook(name, args){
     let argObj = getArgs(args);
+    if ( argObj.args.length == 0 ) return;
 
     // does this call have an interesting result?
     let format = null;
@@ -299,7 +313,6 @@ var rewriter = function(CONFIG){
     }else{
       format = CONFIG.formats.title;
       if ( !format.use ) return;
-      if ( argObj.args.length == 0 ) return;
     }
 
     let titleGrp = printTitle(name, format, argObj.len);
@@ -392,40 +405,67 @@ var rewriter = function(CONFIG){
     }
   }
 
-  function buildSearches(){
-    function getDecoded(needle){
-      // returns array of strings of various "decodings"
-      let ret = [];
-      let re = /\+/g;
-      let needleP = re.test(needle) ? needle.replace(re, ' ') : false;
-      for (let func of [decodeURI, decodeURIComponent]){
-        try {
-          let dec = func(needle);
-          if ( dec == needle ) continue; // no difference, so skip
-          if ( ret.includes(dec) ) continue;
-          ret.push(dec);
-          if ( needleP ){
-            let dec = func(needleP);
-            if ( dec == needleP ) continue;
-            if ( ret.includes(dec) ) continue;
-            ret.push(dec);
-          }
-        }catch(_){ }
-      }
-      return ret;
-    }
-
-    var formats = CONFIG["formats"];
-
-    // window.name
-    if ( typeof(window.name) === "string" && window.name.length > 0 ) {
-      this.search.push({
+  function getChangingSearch() {
+    // these elements can change without a redirect. So we will check the
+    // original value (pageload) and the current value (at function call)
+    let ret = new Set();
+    // TODO: give window.name it's own format
+    var form = CONFIG.formats.needle;
+    if ( form.use && typeof(window.name) === "string" && window.name.length > 3 ) {
+      ret.add({
         name:   "window.name",
         search: window.name,
-        format: CONFIG.formats["needle"],
+        format: form,
         decode: false,
       });
     }
+    form = CONFIG.formats.fragment;
+    if ( form.use ){
+      let needle = location.hash.substring(1);
+      if ( needle.length > 3 ){
+        ret.add({
+          name:   "fragment",
+          search: needle,
+          format: form,
+          decode: false,
+        });
+        for (let n of getDecoded(needle)){
+          ret.add({
+            name:   "fragment",
+            search: n,
+            format: form,
+            decode: true,
+          });
+        }
+      }
+    }
+    return ret;
+  }
+
+  function getDecoded(needle){
+    // returns array of strings of various "decodings"
+    let ret = [];
+    let re = /\+/g;
+    let needleP = re.test(needle) ? needle.replace(re, ' ') : false;
+    for (let func of [decodeURI, decodeURIComponent]){
+      try {
+        let dec = func(needle);
+        if ( dec == needle ) continue; // no difference, so skip
+        if ( ret.includes(dec) ) continue;
+        ret.push(dec);
+        if ( needleP ){
+          let dec = func(needleP);
+          if ( dec == needleP ) continue;
+          if ( ret.includes(dec) ) continue;
+          ret.push(dec);
+        }
+      }catch(_){ }
+    }
+    return ret;
+  }
+
+  function buildSearches(){
+    var formats = CONFIG["formats"];
 
     // needles
     if ( formats.needle.use ){
@@ -436,27 +476,6 @@ var rewriter = function(CONFIG){
           format: CONFIG.formats["needle"],
           decode: false,
         });
-      }
-    }
-
-    // fragment
-    if ( formats.fragment.use ){
-      let needle = location.hash.substring(1);
-      if ( needle.length > 3 ){
-        this.search.push({
-          name:   "fragment",
-          search: needle,
-          format: CONFIG.formats["fragment"],
-          decode: false,
-        });
-        for (let n of getDecoded(needle)){
-          this.search.push({
-            name:   "fragment",
-            search: n,
-            format: CONFIG.formats["fragment"],
-            decode: true,
-          });
-        }
       }
     }
 
@@ -493,6 +512,10 @@ var rewriter = function(CONFIG){
           } // END decoded for loop
         } // while regex loop
       } // if query.length
+    }
+
+    for (let s of getChangingSearch()){
+      this.search.push(s);
     }
   }
 
