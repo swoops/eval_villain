@@ -313,7 +313,7 @@ function populateColors(){
     }
 
     let tbl = document.getElementById("formats-form");
-    let names = ["title", "interesting", "args", "needle", "query", "fragment", "stack"];
+    let names = ["title", "interesting", "args", "needle", "query", "fragment", "winname", "stack"];
 
     for (let name of names){
       if ( !formats[name] ){
@@ -358,7 +358,7 @@ function getColorInfo(){
 // Should reflect switcheroo.js printing
 function colorTest(){
   var colors = getColorInfo();
-  let argStr = "Argument string ( needle, query, fragment )";
+  let argStr = "Argument string ( needle, query, fragment, winname )";
 
   function testArgs(){
     let format = colors.args;
@@ -403,7 +403,7 @@ function colorTest(){
     );
     if (c == "title"){
       testArgs();
-      for (let t of ["needle", "query", "fragment"]){
+      for (let t of ["needle", "query", "fragment", "winname"]){
         hlSearch(t);
       }
       testStack();

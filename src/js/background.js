@@ -93,6 +93,10 @@ function checkStorage(){
           "pattern": "fragment",
           "enabled": true
       }, {
+          "name": "window.name Search",
+          "pattern": "winname",
+          "enabled": true
+      }, {
           "name": "Stack Display",
           "pattern": "stack",
           "enabled": false
@@ -122,6 +126,10 @@ function checkStorage(){
       }, {
           "name": "Fragment Search",
           "pattern": "fragment",
+          "enabled": true
+      }, {
+          "name": "window.name Search",
+          "pattern": "winname",
           "enabled": true
       }, {
           "name": "Stack Display",
@@ -193,6 +201,13 @@ function checkStorage(){
         "pretty"    : "Query Search",
         "use"       : true,
         "open"      : false,
+        "default"   : "color: none",
+        "highlight" : "color: #088"
+      },
+      "winname" : {
+        "pretty"    : "window.name Search",
+        "use"       : true,
+        "open"      : true,
         "default"   : "color: none",
         "highlight" : "color: #088"
       },

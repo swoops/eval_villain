@@ -409,8 +409,7 @@ var rewriter = function(CONFIG){
     // these elements can change without a redirect. So we will check the
     // original value (pageload) and the current value (at function call)
     let ret = new Set();
-    // TODO: give window.name it's own format
-    var form = CONFIG.formats.needle;
+    var form = CONFIG.formats.winname;
     if ( form.use && typeof(window.name) === "string" && window.name.length > 3 ) {
       ret.add({
         name:   "window.name",
@@ -530,8 +529,6 @@ var rewriter = function(CONFIG){
   strToRegex(CONFIG.blacklist);
   buildSearches(); // must be after needles are turned to regex
 
-  // TODO: add configurable window.name formats
-  CONFIG.formats["window.name"] = CONFIG.formats["needle"];
   clog("%c[EV]%c Functions hooked for %c%s%c",
     CONFIG.formats.interesting.highlight,
     CONFIG.formats.interesting.default,
