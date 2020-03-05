@@ -45,7 +45,6 @@ function checkStorage(){
         "enabled" : true,
         "pattern" : "/^\\s*\\S{0,3}\\s*$/"
       }
-
     ],
     "needles" : [
       {
@@ -228,25 +227,74 @@ function checkStorage(){
     }
   }
   function saveIfNot(result){
-    var update = {};
-    var u = false;
+    function objarrayFix(iter){
+      let modified = false;
+      let name = "name";
+      let curNames = new Set();
+      let defNames = new Set();
+      result[iter].forEach(x=>curNames.add(x[name]));
+      allConfig[iter].forEach(x=>defNames.add(x[name]));
+
+      if ( result[iter].length !== curNames.size )
+        throw(`Current config has has duplicates in ${iter}`);
+      if ( allConfig[iter].length !== defNames.size )
+        throw(`Default config has has duplicates in ${iter}`);
+
+      for (let elm of curNames){
+        if ( !defNames.delete(elm) ){
+          let k = {};
+          k[iter] = allConfig[iter];
+          browser.storage.local.set(k)
+            .then(() => debugLog(`[EV DEBUG] updated: ${iter} removing addional value ${elm}`))
+            .catch(() => console.error(`[!!] failed to update ${iter}`));
+          return;
+        }
+      }
+      for ( let elm of defNames ){
+        let k = {};
+        k[iter] = allConfig[iter];
+        browser.storage.local.set(k)
+          .then(() => debugLog(`[EV DEBUG] updated: ${iter} because missing ${elm}`))
+          .catch(() => console.error(`[!!] failed to update ${iter}`));
+      }
+    }
 
     for (let iter in allConfig){
       if ( result[iter] === undefined ){
-        u = true;
-        debugLog("[EV DEBUG] Could not find: %s", iter);
-        update[iter] = allConfig[iter];
-      }
-    }
-    for (let iter in update){
-      debugLog("[EV DEBUG] update: %s", iter);
-    }
+        let k = {};
+        k[iter] = allConfig[iter];
+        browser.storage.local.set(k)
+          .then(() => debugLog(`[EV DEBUG] update: ${iter}`))
+          .catch(() => console.error(`[!!] failed to update ${iter}`));
+      } else if ( ["autoOpen", "onOff", "types"].includes(iter) ){
+        objarrayFix(iter);
+      } else if ( iter === "formats" ){
+        let updated = result[iter];
+        let curFormat = new Set(Object.keys(updated));
+        let defFormat = new Set(Object.keys(allConfig[iter]));
+        if ( Object.keys(updated).length !== curFormat.size )
+          throw(`Current config has has duplicates in ${iter}`);
+        if ( Object.keys(allConfig[iter]).length !== defFormat.size )
+          throw(`Default config has has duplicates in ${iter}`);
 
-    if (u){
-      browser.storage.local.set(update).then(
-        function(){ debugLog("[EV DEBUG] updated defaults")},
-        function(err){console.error("could not create default config: %s", err)}
-      );
+        for (let elm of curFormat){
+          if (!defFormat.delete(elm) ) {
+            debugLog(`[EV DEBUG] Current ${iter} has extra value ${elm}, removing`);
+            delete updated[elm];
+          }
+        }
+
+        for (let elm of defFormat){
+          debugLog(`[EV DEBUG] Current ${iter} is missing ${elm}, adding`);
+          updated[elm] = allConfig[iter][elm];
+        }
+        console.dir(updated);
+        let k = {};
+        k[iter] = updated;
+        browser.storage.local.set(k)
+          .then(() => debugLog(`[EV DEBUG] updated: ${iter}`))
+          .catch(() => console.error(`[!!] failed to update ${iter}`));
+      }
     }
   }
 
