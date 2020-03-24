@@ -446,7 +446,7 @@ var rewriter = function(CONFIG){
     let ret = [];
     let re = /\+/g;
     let needleP = re.test(needle) ? needle.replace(re, ' ') : false;
-    for (let func of [decodeURI, decodeURIComponent]){
+    for (let func of DECODERS){
       try {
         let dec = func(needle);
         if ( dec == needle ) continue; // no difference, so skip
@@ -521,6 +521,7 @@ var rewriter = function(CONFIG){
   // grab before hooking
   var clog = console.log;
   var FF = Function;
+  var DECODERS = [decodeURI, decodeURIComponent];
   for (let name of CONFIG["functions"]) {
     applyEvalVillain(name);
   }
