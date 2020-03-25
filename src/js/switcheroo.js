@@ -80,6 +80,10 @@ var rewriter = function(CONFIG){
     let hasInterest = 0;
 
     for (let i in args){
+      if ( ! args.hasOwnProperty(i) ){
+        console.warn(`[EV] ProtoType Polution seen in object with property ${i}`);
+        continue;
+      }
       let t = typeCheck(args[i]);
       if (t === null) continue;
       let str = argToString(args[i]);
