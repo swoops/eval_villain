@@ -1,13 +1,21 @@
 var rewriter = function(CONFIG) {
-	this.search = [];
+	this.search = {
+		needle : [],
+		winname : [],
+		fragment : [],
+		query : [],
+	};
 	function blacklistCheck(str) {
 		for (let needle of CONFIG.blacklist) {
 			if (typeof(needle) === "string") {
-				if (needle.length > 0 &&	str.indexOf(needle) >= 0)
+				if (needle.length > 0 && str.indexOf(needle) >= 0) {
 					return true;
+				}
 			} else { // regex
 				needle.lastIndex = 0;
-				if (needle.test(str)) return true;
+				if (needle.test(str)) {
+					return true;
+				}
 			}
 		}
 		return false;
@@ -85,9 +93,6 @@ var rewriter = function(CONFIG) {
 			if (t === null) continue;
 			let str = argToString(args[i]);
 
-			if (blacklistCheck(str))
-				continue; // don't care
-
 			ret.push({
 				"type": t,
 				"str" : str,
@@ -149,6 +154,7 @@ var rewriter = function(CONFIG) {
 			console.groupEnd(argTitle);
 		}
 	}
+
 	function zebraBuild(arr, fmt1, fmt2) {
 		let fmt = "%c%s".repeat(arr.length);
 		let args = [];
@@ -178,7 +184,6 @@ var rewriter = function(CONFIG) {
 	* @param {Array} inedexes indexes of arg array that are interesting
 	**/
 	function getInterest(argObj) {
-		let ret = [];
 		function highlightWords(sName, str, word, alt=false) {
 			var defColor = formats[sName].default;
 			var hiColor  = formats[sName].highlight;
@@ -208,14 +213,16 @@ var rewriter = function(CONFIG) {
 			if (typeof(needle) === "string") {
 				str.split(needle).forEach((x,index,arr)=> {
 					ret.push(x)
-					if (index != arr.length-1) ret.push(needle)
+					if (index != arr.length-1) {
+						ret.push(needle)
+					}
 				});
-			}else if (needle.global == false) {
+			} else if (needle.global == false) {
 				// not global regex, so just split into two on first
 				needle.lastIndex = 0;
 				let m = needle.exec(str)[0];
 				str.split(m).forEach(x=>ret.push(x,m));
-			}else{
+			} else {
 				let holder = str;
 				let match = null;
 				needle.lastIndex = 0;
@@ -242,10 +249,8 @@ var rewriter = function(CONFIG) {
 				if (str.includes(needle)) {
 					return true;
 				}
-			}else{
-				if (needle.test(str)) {
-					return true;
-				}
+			} else if (needle.test(str)) {
+				return true;
 			}
 			return false;
 		}
@@ -270,26 +275,18 @@ var rewriter = function(CONFIG) {
 			console.groupEnd(end);
 		}
 
-		// values that change without redirect
-		let latestTest = getChangingSearch();
-		for (let arg of argObj.args) {
-			for (let s of this.search) {
-				for (let test of latestTest) {
-					if (test.name === s.name && test.search === s.search) {
-						latestTest.delete(test);
+		// update search lists with changing input first
+		addChangingSearch();
+
+		let ret = [];
+		// do all tests
+		for (let field in this.search) {
+			for (let test of this.search[field]) {
+				for (let arg of argObj.args) {
+					if (testit(arg.str, test.search)) {
+						ret.push(()=>printer(test,arg));
 					}
 				}
-				if (!testit(arg.str, s.search)) continue;
-				ret.push(()=>printer(s,arg));
-			}
-		}
-
-		// search for new things
-		for (let test of latestTest) {
-			this.search.push(test);
-			for (let arg of argObj.args) {
-				if (!testit(arg.str, test.search)) continue;
-				ret.push(()=>printer(test,arg));
 			}
 		}
 		return ret;
@@ -310,10 +307,14 @@ var rewriter = function(CONFIG) {
 
 		if (printers.length > 0) {
 			format = CONFIG.formats.interesting;
-			if (!format.use) return;
-		}else{
+			if (!format.use) {
+				return;
+			}
+		} else {
 			format = CONFIG.formats.title;
-			if (!format.use) return;
+			if (!format.use) {
+				return;
+			}
 		}
 
 		let titleGrp = printTitle(name, format, argObj.len);
@@ -325,18 +326,16 @@ var rewriter = function(CONFIG) {
 		// stack display
 		// don't put this into a function, it will be one more thing on the call
 		// stack
-		{
-			let stackFormat = CONFIG.formats.stack;
-			if (stackFormat.use) {
-				let stackTitle = "%cstack: "
-				if (stackFormat.open)
-					console.group(stackTitle, stackFormat.default);
-				else
-					console.groupCollapsed(stackTitle, stackFormat.default);
-
-				console.trace();
-				console.groupEnd(stackTitle);
+		let stackFormat = CONFIG.formats.stack;
+		if (stackFormat.use) {
+			let stackTitle = "%cstack: "
+			if (stackFormat.open) {
+				console.group(stackTitle, stackFormat.default);
+			} else {
+				console.groupCollapsed(stackTitle, stackFormat.default);
 			}
+			console.trace();
+			console.groupEnd(stackTitle);
 		}
 		console.groupEnd(titleGrp);
 		return ;
@@ -406,40 +405,50 @@ var rewriter = function(CONFIG) {
 		}
 	}
 
-	function getChangingSearch() {
-		// these elements can change without a redirect. So we will check the
-		// original value (pageload) and the current value (at function call)
-		let ret = new Set();
-		var form = CONFIG.formats.winname;
-		if (form.use && typeof(window.name) === "string" && window.name.length > 3) {
-			ret.add({
-				name:		"window.name",
-				search: window.name,
-				format: form,
-				decode: false,
-			});
+	function addUniqueToSearch(field, value) {
+		let s = value.search;
+		if (typeof(s) === "string" && s.length > 0 && !blacklistCheck(s)) {
+			for (let i of this.search[field]) {
+				if (i.search == s && i.name == value.name) {
+					return;
+				}
+			}
+			this.search[field].push(value);
 		}
+	}
+
+	function addChangingSearch() {
+		// window.name
+		var form = CONFIG.formats.winname;
+		let wn = window.name;
+		if (form.use) {
+			let addit = false;
+			addUniqueToSearch("winname", {
+					name:		"window.name",
+					search: wn,
+					format: form,
+					decode: false,
+				});
+		}
+
 		form = CONFIG.formats.fragment;
 		if (form.use) {
 			let needle = location.hash.substring(1);
-			if (needle.length > 3) {
-				ret.add({
-					name:		"fragment",
+				addUniqueToSearch("fragment", {
+					name: "fragment",
 					search: needle,
 					format: form,
 					decode: false,
 				});
 				for (let n of getDecoded(needle)) {
-					ret.add({
-						name:		"fragment",
+					addUniqueToSearch("fragment", {
+						name: "fragment",
 						search: n,
 						format: form,
 						decode: true,
 					});
 				}
 			}
-		}
-		return ret;
 	}
 
 	function getDecoded(needle) {
@@ -470,7 +479,7 @@ var rewriter = function(CONFIG) {
 		// needles
 		if (formats.needle.use) {
 			for (let needle of CONFIG["needles"]) {
-				this.search.push({
+				this.search.needle.push({
 					name:"needle",
 					search: needle,
 					format: CONFIG.formats["needle"],
@@ -487,24 +496,23 @@ var rewriter = function(CONFIG) {
 				let re = /[&\?]([^=]*)=([^&]*)/g;
 				let loop = 0;
 				let match = false;
-				let prev = [];
 				while (match = re.exec(query)) {
 					if (loop++ > 200) {
 						console.warn("[EV] More then 200 parameters?");
 						break;
 					}
-					let param = match[1];
+					let param = `query[${match[1]}]`;
 					let needle = match[2];
-					if (needle.length < 4) continue;
-					this.search.push({
-						name:		`query[${param}]`,
+
+					addUniqueToSearch("query", {
+						name:		param,
 						search: needle,
 						format: CONFIG.formats["query"],
 						decode: false,
 					});
 					for (let n of getDecoded(needle)) {
-						this.search.push({
-							name:		`query[${param}]`,
+						addUniqueToSearch("query", {
+							name:		param,
 							search: n,
 							format: CONFIG.formats["query"],
 							decode: true,
@@ -514,9 +522,7 @@ var rewriter = function(CONFIG) {
 			} // if query.length
 		}
 
-		for (let s of getChangingSearch()) {
-			this.search.push(s);
-		}
+		addChangingSearch();
 	}
 
 	// grab before hooking

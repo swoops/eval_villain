@@ -35,6 +35,11 @@ var defaultConfig = {
 			"name" : "Small Stuff",
 			"enabled" : true,
 			"pattern" : "/^\\s*\\S{0,3}\\s*$/"
+		},
+		{
+			"name" : "Boolian",
+			"enabled" : true,
+			"pattern" : "/^\s*(?:true|false)\s*$/gi"
 		}
 	],
 	"needles" : [
