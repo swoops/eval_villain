@@ -53,7 +53,6 @@ var line = ['', needle, ' = 1;{let ', needle, ' = true}'];
 eval(line.join(""));
 testInterset(t, "eval", reason, needle, line);
 
-// URL interest
 t = "Query unencoded"
 var reason = "query[param_zxcv]";
 var needle = 'zxcv';
@@ -61,7 +60,6 @@ var line = ['// ', needle, ''];
 eval(line.join(""));
 testInterset(t, "eval", reason, needle, line, false);
 
-// // URL interest
 t = "Query encoded"
 var reason = "query[encoded]";
 var needle = '\' + <';
@@ -69,10 +67,25 @@ var line = ['// ', needle, ''];
 eval(line.join(""));
 testInterset(t, "eval", reason, needle, line, true);
 
-// // URL interest
 t = "Fragment"
 var reason = "fragment";
 var needle = 'fragment_value';
 var line = ['// ', needle, ''];
 eval(line.join(""));
 testInterset(t, "eval", reason, needle, line, false);
+
+t = "2nd Fragment"
+needle = "newfrag";
+window.location.hash = needle;
+var reason = "fragment";
+var line = ['// ', needle, ''];
+eval(line.join(""));
+testInterset(t, "eval", reason, needle, line, false);
+
+t = "new fragment blacklist"
+needle = "true";
+window.location.hash = needle;
+var reason = "fragment";
+var line = ['// ', needle, ''];
+eval(line.join(""));
+testNormal(t, "eval", line.join(""));

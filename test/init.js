@@ -1,10 +1,12 @@
 // ensure we have parameters to play with
 {
-let gotourl =  '?one=1&param_zxcv=zxcv&encoded=%27%20%2b%20%3c&bool=true'
-	if (window.location.search != gotourl) {
-		window.location.search = gotourl;
-	} else if (window.location.hash == "") {
-		window.location.hash = "fragment_value";
+	let gotourl =  '?one=1&param_zxcv=zxcv&encoded=%27%20%2b%20%3c&bool=true'
+	let frag = "fragment_value";
+	let url = new URL(location.href);
+	if (url.search != gotourl || url.hash != frag) {
+		url.search = gotourl;
+		url.hash = frag;
+		location.href = url;
 	}
 }
 
