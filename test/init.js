@@ -1,6 +1,15 @@
 // ensure we have parameters to play with
 {
-	let gotourl =  '?one=1&param_zxcv=zxcv&encoded=%27%20%2b%20%3c&bool=true'
+	let jsdata = btoa(JSON.stringify(
+		  {
+			 "firstProperty" : "firstPropans", 
+			 "secondArray" : [ "firstinarray", "secondinarray" ], 
+			 "bool" : true, 
+			 "small" : "a"
+		  }
+	));
+	
+	let gotourl = `?one=1&json=${jsdata}&param_zxcv=zxcv&encoded=%27%20%2b%20%3c&bool=true`
 	let frag = "fragment_value";
 	let url = new URL(location.href);
 	if (url.search != gotourl || url.hash != frag) {
@@ -103,9 +112,8 @@ function testInterset(msg, name, reason, needle, line, decoded) {
 
 	var ban = null;
 	if (decoded) {
-		ban =["%c%s%c%s%c%s%c%s%c%s%c%s", colNone, "query[encoded]: ",
-			colGreen, needle, colNone, " found", colGreen, "",
-			colNone, " -> ", colGreen, "[URL Decoded]"];
+		ban =['%c%s%c%s%c%s%c%s%c%s', colNone, `${reason}: `,
+			colGreen, needle, colNone, " found", colGreen, " derived by: ", colNone, decoded];
 	} else {
 		ban = ["%c%s%c%s%c%s", colNone,`${reason}: `, colGreen, needle, colNone, " found"];
 	}

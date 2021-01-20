@@ -1,48 +1,35 @@
 var rewriter = function(CONFIG) {
+	// set of strings to search for
+	this.searchSeen = new Set();
 	this.search = {
 		needle : [],
 		winname : [],
 		fragment : [],
 		query : [],
 	};
-	function blacklistCheck(str) {
-		for (let needle of CONFIG.blacklist) {
-			if (typeof(needle) === "string") {
-				if (needle.length > 0 && str.indexOf(needle) >= 0) {
-					return true;
-				}
-			} else { // regex
-				needle.lastIndex = 0;
-				if (needle.test(str)) {
-					return true;
-				}
-			}
-		}
-		return false;
-	}
 
 	function invalidArgType(arg, num, argType) {
 		let errtitle = "%c[EV] Error: %c%s%c Unexpected argument type for [%d], got %c%s"
 		let hl	 = CONFIG.formats.title.highlight;
 		let dflt = CONFIG.formats.title.default;
-		console.groupCollapsed(
+		real.logGroupCollapsed(
 			errtitle, dflt,
 			hl, name, dflt,
 			num,
 			hl, argType
 		);
-		console.group("args:");
+		real.logGroup("args:");
 		console.dir(arg);
-		console.groupEnd("args array:");
-		console.groupCollapsed("trace:");
-		console.trace();
-		console.groupEnd("trace:");
-		console.groupEnd(errtitle);
+		real.logGroupEnd("args array:");
+		real.logGroupCollapsed("trace:");
+		real.trace();
+		real.logGroupEnd("trace:");
+		real.logGroupEnd(errtitle);
 	}
 
 	/**
 	* Helper function to turn parsable arguments into nice strings
-	* @param {Object|string} arg Argument to be turned into a string
+	* @arg {Object|string} arg Argument to be turned into a string
 	**/
 	function argToString(arg) {
 		if (typeof(arg) === "string")
@@ -55,7 +42,7 @@ var rewriter = function(CONFIG) {
 	/**
 	* Returns the type of an argument. Returns null if the argument should be
 	* skipped.
-	* @param arg Argument to have it's type checked
+	* @arg arg Argument to have it's type checked
 	*/
 	function typeCheck(arg) {
 		let knownTypes = [
@@ -81,7 +68,7 @@ var rewriter = function(CONFIG) {
 	/**
 	* Turn all arguments into strings and change record original type
 	*
-	* @param {Object} args `arugments` object of hooked function
+	* @args {Object} args `arugments` object of hooked function
 	*/
 	function getArgs(args) {
 		let ret = [];
@@ -107,12 +94,12 @@ var rewriter = function(CONFIG) {
 
 	function printTitle(name, format, num) {
 		let titleGrp = "%c[EV] %c%s%c %s"
-		let func = console.group;
+		let func = real.logGroup;
 		var values = [
 			format.default, format.highlight, name, format.default, location.href
 		];
 
-		if (!format.open) func = console.groupCollapsed;
+		if (!format.open) func = real.logGroupCollapsed;
 		if (num >1) {
 		 // add arg number in format
 		 titleGrp = "%c[EV] %c%s[%d]%c %s"
@@ -125,13 +112,12 @@ var rewriter = function(CONFIG) {
 	/**
 	* Print all the arguments to the hooked funciton
 	*
-	* @param {Array} args array of arguments
-	* @param {Array} inedexes indexes of args that should be printed
+	* @argObj {Array} args array of arguments
 	**/
 	function printArgs(argObj) {
 		let argFormat = CONFIG.formats.args;
 		if (!argFormat.use) return;
-		let func = argFormat.open ? console.group : console.groupCollapsed;
+		let func = argFormat.open ? real.logGroup : real.logGroupCollapsed;
 
 		if (argObj.len === 1	&& argObj.args.length == 1) {
 			let arg = argObj.args[0];
@@ -141,8 +127,8 @@ var rewriter = function(CONFIG) {
 				arg.type,
 			];
 			func(argTitle, ...data);
-			clog("%c%s", argFormat.highlight, arg.str);
-			console.groupEnd(argTitle);
+			real.log("%c%s", argFormat.highlight, arg.str);
+			real.logGroupEnd(argTitle);
 			return
 		}
 
@@ -150,8 +136,8 @@ var rewriter = function(CONFIG) {
 		let total = argObj.len;
 		for (let i of argObj.args) {
 			func(argTitle, argFormat.default, i.num+1, total, i.type);
-			clog("%c%s", argFormat.highlight, i.str);
-			console.groupEnd(argTitle);
+			real.log("%c%s", argFormat.highlight, i.str);
+			real.logGroupEnd(argTitle);
 		}
 	}
 
@@ -167,12 +153,12 @@ var rewriter = function(CONFIG) {
 	}
 
 	function zebraLog(arr, fmt1, fmt2) {
-		clog(...zebraBuild(arr,fmt1,fmt2));
+		real.log(...zebraBuild(arr,fmt1,fmt2));
 	}
 
 	function zebraGroup(arr, fmt1, fmt2, open) {
 		let a = zebraBuild(arr,fmt1,fmt2);
-		let f = open ? console.group : console.groupCollapsed;
+		let f = open ? real.logGroup : real.logGroupCollapsed;
 		f(...a);
 		return a[0];
 	}
@@ -180,8 +166,7 @@ var rewriter = function(CONFIG) {
 	/**
 	* Check interest and get printers for each interesting result
 	*
-	* @param {Array} args array of arguments
-	* @param {Array} inedexes indexes of arg array that are interesting
+	* @argObj {Array} args array of arguments
 	**/
 	function getInterest(argObj) {
 		function highlightWords(sName, str, word, alt=false) {
@@ -203,9 +188,9 @@ var rewriter = function(CONFIG) {
 			}
 
 			if (formats[sName].open)
-				console.group(titleStr, ...titleArgs);
+				real.logGroup(titleStr, ...titleArgs);
 			else
-				console.groupCollapsed(titleStr, ...titleArgs);
+				real.logGroupCollapsed(titleStr, ...titleArgs);
 		} // end highlightWords
 
 		function hlSlice(str, needle) {
@@ -257,13 +242,15 @@ var rewriter = function(CONFIG) {
 
 		function printer(s, arg) {
 			let title = [s.name+": ", s.search];
-			if (argObj.len > 1)
+			if (argObj.len > 1) {
 				title.push(" found (arg:", arg.num, ")");
-			else
+			} else {
 				title.push(" found");
+			}
 
-			if (s.decode)
-				title.push("", " -> ", "[URL Decoded]");
+			if (s.decode) {
+				title.push(" derived by: ", s.decode);
+			}
 
 			let end = zebraGroup(
 				title,
@@ -272,7 +259,7 @@ var rewriter = function(CONFIG) {
 			);
 			let ar = hlSlice(arg.str, s.search);
 			zebraLog(ar, s.format.default, s.format.highlight);
-			console.groupEnd(end);
+			real.logGroupEnd(end);
 		}
 
 		// update search lists with changing input first
@@ -294,8 +281,8 @@ var rewriter = function(CONFIG) {
 
 	/**
 	* Parse all arguments for function `name` and pretty print them in the console
-	* @param {string} name Name of function that is being hooked
-	* @param {Array}	args array of arguments
+	* @name {string} name Name of function that is being hooked
+	* @args {Array}	args array of arguments
 	**/
 	function EvalVillainHook(name, args) {
 		let argObj = getArgs(args);
@@ -330,14 +317,14 @@ var rewriter = function(CONFIG) {
 		if (stackFormat.use) {
 			let stackTitle = "%cstack: "
 			if (stackFormat.open) {
-				console.group(stackTitle, stackFormat.default);
+				real.logGroup(stackTitle, stackFormat.default);
 			} else {
-				console.groupCollapsed(stackTitle, stackFormat.default);
+				real.logGroupCollapsed(stackTitle, stackFormat.default);
 			}
-			console.trace();
-			console.groupEnd(stackTitle);
+			real.trace();
+			real.logGroupEnd(stackTitle);
 		}
-		console.groupEnd(titleGrp);
+		real.logGroupEnd(titleGrp);
 		return ;
 	} // end EvalVillainHook
 
@@ -377,7 +364,7 @@ var rewriter = function(CONFIG) {
 			return;
 
 		} else if (!/^[a-zA-Z.]+$/.test(name)) {
-			clog("[EV] name: %s invalid, not hooking", name);
+			real.log("[EV] name: %s invalid, not hooking", name);
 		} else if (name.indexOf(".") >= 0) {
 			let groups = name.split(".");
 			let i = 0; // outside for loop for a reason
@@ -405,72 +392,173 @@ var rewriter = function(CONFIG) {
 		}
 	}
 
-	function addUniqueToSearch(field, value) {
-		let s = value.search;
-		if (typeof(s) === "string" && s.length > 0 && !blacklistCheck(s)) {
-			for (let i of this.search[field]) {
-				if (i.search == s && i.name == value.name) {
-					return;
-				}
-			}
-			this.search[field].push(value);
-		}
-	}
-
 	function addChangingSearch() {
 		// window.name
 		var form = CONFIG.formats.winname;
 		let wn = window.name;
 		if (form.use) {
 			let addit = false;
-			addUniqueToSearch("winname", {
-					name:		"window.name",
+			addToSearch(true, "winname", {
+					name: "window.name",
 					search: wn,
 					format: form,
-					decode: false,
 				});
 		}
 
 		form = CONFIG.formats.fragment;
 		if (form.use) {
-			let needle = location.hash.substring(1);
-				addUniqueToSearch("fragment", {
-					name: "fragment",
-					search: needle,
-					format: form,
-					decode: false,
-				});
-				for (let n of getDecoded(needle)) {
-					addUniqueToSearch("fragment", {
-						name: "fragment",
-						search: n,
-						format: form,
-						decode: true,
-					});
-				}
-			}
+			addToSearch(true, "fragment", {
+				name: "fragment",
+				search: location.hash.substring(1),
+				format: form,
+			});
+		}
 	}
 
-	function getDecoded(needle) {
-		// returns array of strings of various "decodings"
-		let ret = [];
-		let re = /\+/g;
-		let needleP = re.test(needle) ? needle.replace(re, ' ') : false;
-		for (let func of DECODERS) {
-			try {
-				let dec = func(needle);
-				if (dec == needle) continue; // no difference, so skip
-				if (ret.includes(dec)) continue;
-				ret.push(dec);
-				if (needleP) {
-					let dec = func(needleP);
-					if (dec == needleP) continue;
-					if (ret.includes(dec)) continue;
-					ret.push(dec);
-				}
-			}catch(_) { }
+	function addToSearch(decode, addTo, sObj) {
+		if (!decode) {
+			sObj.decode = "";
+			if (!isNeedleBad(sObj.search)) {
+				addIt(addTo, sObj);
+			}
+			return;
 		}
-		return ret;
+
+		for (let tup of decodeAll(sObj.search)) {
+			if (!addIt(addTo, {
+				name: sObj.name,
+				search: tup[0],
+				format: sObj.format,
+				decode: tup[1],
+			})) {
+				break;
+			}
+		}
+
+		function isNeedleBad(str) {
+			if (typeof(str) !== "string" || str.length == 0 || this.searchSeen.has(str)) {
+				return true;
+			}
+			for (let needle of CONFIG.blacklist) {
+				if (typeof(needle) === "string") {
+					if (needle.length > 0 && str.indexOf(needle) >= 0) {
+						return true;
+					}
+				} else { // regex
+					needle.lastIndex = 0;
+					if (needle.test(str)) {
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+
+
+		function addIt(addTo, sObj) {
+			const limit = 200;
+			let size = this.searchSeen.size;
+			if (size == limit-1) {
+				let col = CONFIG.formats.interesting;
+				real.log(
+				  `%c[EV WARNING]%c size limit (${limit}) reached for ${addTo} parameters in ${location.href}`,
+					col.highlight, col.default);
+			} else if (size >= limit) {
+				return false;
+			}
+
+			this.searchSeen.add(sObj.search);
+			this.search[addTo].push(sObj);
+			return true;
+		}
+
+		function* decodeAny(any, decoded) {
+			switch (typeof(any)) {
+			case "array":
+				yield* decodeArray(any, decoded);
+			case "object":
+				yield* decodeObject(any, decoded);
+			default:
+				yield* decodeAll(any, decoded);
+			}
+		}
+
+		function* decodeArray(a, decoded) {
+			for (let i in a) {
+				yield* decodeAny(a[i], `${decoded}[${i}]`);
+			}
+		}
+
+		function* decodeObject(o, decoded) {
+			for (let prop in o) {
+				yield* decodeAny(o[prop], `${decoded}["${prop}"]`);
+			}
+		}
+		/**
+		* Generate all possible decodings for string
+		* @s {string}	args array of arguments
+		* @decoded {string} string representing deocoding method
+		*
+		**/
+		function* decodeAll(s, decoded) {
+			if (isNeedleBad (s)) {
+				return;
+			}
+			if (!decoded) {
+				yield [s, decoded];
+				decoded = `"${s.replaceAll('"', '\\"')}"`
+			} else {
+				yield [s, decoded];
+			}
+
+			// JSON
+			var dec = null;
+			try {
+				dec = real.jsonParse(s);
+			} catch (_) {};
+			if (dec) {
+				yield* decodeAny(dec, `JSON.parse(${decoded})`);
+				return;
+			}
+
+			// atob
+			dec = null;
+			try {
+				dec = bdecode(s);
+			} catch (_) {};
+			if (dec) {
+				yield* decodeAll(dec, `atob(${decoded})`);
+				return;
+			}
+
+			// string replace
+			dec = s.replaceAll("+", " ");
+			if (dec !== s) {
+				yield* decodeAll(dec, `${decoded}.replaceAll("+", " ")`);
+			}
+
+			if (!s.includes("%")) {
+				return;
+			}
+
+			// match all of them
+			dec = null;
+			try {
+				dec = real.decodeURIComponent(s);
+			} catch(_){}
+			if (dec && dec != s) {
+				yield* decodeAll(dec, `decodeURIComponent(${decoded})`);
+			}
+
+			// match all of them
+			dec = null;
+			try {
+				dec = real.decodeURI(s);
+			} catch(_){}
+			if (dec && dec != s) {
+				yield* decodeAll(dec, `decodeURI(${decoded})`);
+			}
+		}
 	}
 
 	function buildSearches() {
@@ -483,7 +571,7 @@ var rewriter = function(CONFIG) {
 					name:"needle",
 					search: needle,
 					format: CONFIG.formats["needle"],
-					decode: false,
+					decode: "",
 				});
 			}
 		}
@@ -504,20 +592,11 @@ var rewriter = function(CONFIG) {
 					let param = `query[${match[1]}]`;
 					let needle = match[2];
 
-					addUniqueToSearch("query", {
+					addToSearch(true, "query", {
 						name:		param,
 						search: needle,
-						format: CONFIG.formats["query"],
-						decode: false,
+						format: formats.query,
 					});
-					for (let n of getDecoded(needle)) {
-						addUniqueToSearch("query", {
-							name:		param,
-							search: n,
-							format: CONFIG.formats["query"],
-							decode: true,
-						});
-					} // END decoded for loop
 				} // while regex loop
 			} // if query.length
 		}
@@ -525,10 +604,18 @@ var rewriter = function(CONFIG) {
 		addChangingSearch();
 	}
 
-	// grab before hooking
-	var clog = console.log;
-	var FF = Function;
-	var DECODERS = [decodeURI, decodeURIComponent];
+	// grab real functions before hooking
+	var real = {
+		log : console.log,
+		jsonParse : JSON.parse,
+		logGroup : console.group,
+		logGroupEnd : console.groupEnd,
+		logGroupCollapsed : console.groupCollapsed,
+		trace : console.trace,
+		decodeURIComponent : decodeURIComponent,
+		decodeURI : decodeURI,
+	}
+	var bdecode = atob;
 	for (let name of CONFIG["functions"]) {
 		applyEvalVillain(name);
 	}
@@ -537,7 +624,7 @@ var rewriter = function(CONFIG) {
 	strToRegex(CONFIG.blacklist);
 	buildSearches(); // must be after needles are turned to regex
 
-	clog("%c[EV]%c Functions hooked for %c%s%c",
+	real.log("%c[EV]%c Functions hooked for %c%s%c",
 		CONFIG.formats.interesting.highlight,
 		CONFIG.formats.interesting.default,
 		CONFIG.formats.interesting.highlight,

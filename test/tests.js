@@ -64,15 +64,16 @@ t = "Query encoded"
 var reason = "query[encoded]";
 var needle = '\' + <';
 var line = ['// ', needle, ''];
+var decoded = 'decodeURIComponent("%27%20%2b%20%3c")';
 eval(line.join(""));
-testInterset(t, "eval", reason, needle, line, true);
+testInterset(t, "eval", reason, needle, line, decoded);
 
 t = "Fragment"
 var reason = "fragment";
 var needle = 'fragment_value';
 var line = ['// ', needle, ''];
 eval(line.join(""));
-testInterset(t, "eval", reason, needle, line, false);
+testInterset(t, "eval", reason, needle, line);
 
 t = "2nd Fragment"
 needle = "newfrag";
@@ -80,7 +81,7 @@ window.location.hash = needle;
 var reason = "fragment";
 var line = ['// ', needle, ''];
 eval(line.join(""));
-testInterset(t, "eval", reason, needle, line, false);
+testInterset(t, "eval", reason, needle, line);
 
 t = "new fragment blacklist"
 needle = "true";
@@ -89,3 +90,13 @@ var reason = "fragment";
 var line = ['// ', needle, ''];
 eval(line.join(""));
 testNormal(t, "eval", line.join(""));
+
+
+
+t = "decoding atob,json,array  atob encoded"
+var reason = "query[json]";
+var needle = 'secondinarray';
+decoded = 'JSON.parse(atob("eyJmaXJzdFByb3BlcnR5IjoiZmlyc3RQcm9wYW5zIiwic2Vjb25kQXJyYXkiOlsiZmlyc3RpbmFycmF5Iiwic2Vjb25kaW5hcnJheSJdLCJib29sIjp0cnVlLCJzbWFsbCI6ImEifQ=="))["secondArray"]["1"]';
+var line = ['// ', needle, ''];
+eval(line.join(""));
+testInterset(t, "eval", reason, needle, line, decoded);
