@@ -77,11 +77,10 @@ The needle pattern can be set to a Regular Expression, see RegEx for more
 details.
 
 ### Blacklists
-Blacklist patterns can be used to disregard benign input. Hooked input is
-searched for the blacklist patterns. If EV finds a match, there will be no
-output. This is the first search done on hooked input, so it takes priority
-over everything else. Like Needles, a regular expression can be used, see
-regex.
+Eval Villain checks if strings seen in sources are found in sinks. If a source
+string is found in a sink, the result is marked as interesting. It can be
+annoying to have common strings, like "true", marked as interesting. So
+configuring a blacklist will allow you to ignore these strings.
 
 Tips:
 * Dev out your blacklist pattern as a Needle first to make sure you are
