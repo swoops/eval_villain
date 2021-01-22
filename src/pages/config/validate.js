@@ -59,7 +59,7 @@ function validate(dom, tblName=null) {
 	let res = v[tblName][paramName](dom);
 
 	if (res) {
-		gotError(dom, tblName, `${paramName}:[${dom.value}]: ${res}`;
+		gotError(dom, tblName, `${paramName}:[${dom.value}]: ${res}`);
 		return false;
 	} else {
 		removeFromErrorArray(dom, tblName);
