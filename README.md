@@ -150,8 +150,5 @@ looks good. Open the console and click the "test" button in the configuration
 page. If you like the console output then click save to keep it.
 
 ## Todo:
-* Update interesting results title with the reasons it is interesting
-* Prohibit hooking of functions used in hooking code to avoid infinite
-  recursion.
 * If the config page is already open, go to that page instead of a new tab (may
   require permissions...)
