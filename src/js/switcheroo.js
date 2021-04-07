@@ -244,14 +244,21 @@ var rewriter = function(CONFIG) {
 
 		function printer(s, arg) {
 			let title = [s.name+": ", s.search];
+			let maxdecodelen = 100;
 			if (argObj.len > 1) {
 				title.push(" found (arg:", arg.num, ")");
 			} else {
 				title.push(" found");
 			}
 
+			let dodecode = false;
 			if (s.decode) {
-				title.push(" derived by: ", s.decode);
+				if (s.decode.length <= maxdecodelen) {
+					title.push(" derived by: ", s.decode);
+				} else {
+					title.push(" derived by: ", s.decode.substring(0, maxdecodelen - 3) + "...");
+					dodecode = true;
+				}
 			}
 
 			let end = zebraGroup(
@@ -259,6 +266,12 @@ var rewriter = function(CONFIG) {
 				s.format.default, s.format.highlight,
 				s.format.open
 			);
+			if (dodecode) {
+				let d = "Full decoding";
+				real.logGroupCollapsed(d);
+				real.log(s.decode);
+				real.logGroupEnd(d);
+			}
 			let ar = hlSlice(arg.str, s.search);
 			zebraLog(ar, s.format.default, s.format.highlight);
 			real.logGroupEnd(end);
