@@ -91,8 +91,6 @@ var line = ['// ', needle, ''];
 eval(line.join(""));
 testNormal(t, "eval", line.join(""));
 
-
-
 t = "decoding atob,json,array  atob encoded"
 var reason = "query[json]";
 var needle = 'secondinarray';

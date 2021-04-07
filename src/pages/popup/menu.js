@@ -1,4 +1,4 @@
-configList = ["targets", "needles", "blacklist", "functions", "autoOpen", "onOff", "types"];
+var configList = ["targets", "needles", "blacklist", "functions", "autoOpen", "onOff", "types"];
 function updateToggle(on) {
 	if (typeof(on) !== "boolean") {
 		console.error("unexpected message type");
@@ -44,14 +44,38 @@ function createCheckBox(name, checked, subMenu) {
 	return li;
 }
 
+function getSections() {
+	let ret =  browser.storage.local.get(["targets", "needles", "blacklist", "functions", "types", "formats"]);
+	return ret.then(all => {
+		let autoOpen = [];
+		let onOff = [];
+		for (let k of all.formats) {
+			autoOpen.push({
+				name: k.pretty,
+				pattern: k.name,
+				enabled: k.open,
+			});
+			onOff.push({
+				name: k.pretty,
+				pattern: k.name,
+				enabled: k.use,
+			});
+		}
+		all.autoOpen = autoOpen;
+		all.onOff = onOff;
+		delete all.formats;
+		return all;
+	});
+}
+
 function populateSubMenus() {
 	function writeDOM(res) {
 		for (let sub of configList) {
 			if (!res[sub]) {
 				console.error("Could not get: " + sub);
 			}
-			var where = document.getElementById(`${sub}-sub`);
 
+			var where = document.getElementById(`${sub}-sub`);
 			for (let itr of res[sub]) {
 				let inpt = createCheckBox(itr.name, itr.enabled, sub);
 				where.appendChild(inpt);
@@ -59,43 +83,47 @@ function populateSubMenus() {
 
 			if (res[sub].length == 0) {
 				let em = document.createElement("em");
-				em.innerText = "Nothing Configured"
-				em.className = "configure"
+				em.innerText = "Nothing Configured";
+				em.className = "configure";
 				em.onclick = () => goToConfig();
 				where.appendChild(em);
 			}
 		}
 	}
 
-	let result = browser.storage.local.get(configList);
-	result.then(
-		writeDOM,
-		function(err) { console.error("failed to get storrage: " + err) }
-	);
+	getSections()
+		.then(writeDOM, err => console.error("failed to get storrage: " + err));
 }
 
 function updateSubmenu(target) {
 	var name = target.name;
 	function update(res) {
-		let conf = res[name]
-		if (conf === undefined) {
-			console.error("could not get targets for updating");
-			return;
+		var chg = "enabled";
+		var ident = "name";
+
+		if (target.name === "autoOpen") {
+			chg = "open";
+			ident = "pretty";
+		} else if (target.name === "onOff") {
+			chg = "use";
+			ident = "pretty";
 		}
-		for (let sub of conf) {
-			if (sub.name === target.id) {
-				sub["enabled"] = target.checked;
+		for (let k of res[name]) {
+			if (k[ident] === target.id) {
+				k[chg] = target.checked;
+				break;
 			}
 		}
 
-		var newInfo = {}
-		newInfo[name] = conf;
-		return browser.storage.local.set(newInfo);
+		return browser.storage.local.set(res);
 	}
 
-	let result = browser.storage.local.get(name);
-	result.then(update).then(updateBackground).then(updateToggle);
-	result.catch(err => console.error("failed to get storrage: " + err));
+	if (["autoOpen", "onOff"].includes(name)) {
+		name = "formats";
+	}
+	browser.storage.local.get(name)
+		.then(update).then(updateBackground).then(updateToggle)
+		.catch(err => console.error("failed to get storrage: " + err));
 }
 
 function listener(ev) {
@@ -105,24 +133,20 @@ function listener(ev) {
 
 	if (node === "INPUT") {
 		if (id === "toggle") {															// on off button
-			let pom = toggleBackground();
-			pom.then(updateToggle);
-			pom.catch(function() {
-				console.error("promise failed?");
-				updateToggle(false);
-			});
-			return false;
-		}else if (configList.indexOf(name) >= 0) {						// submenu checkbox?
+			toggleBackground()
+				.then(amIOn)
+				.then(updateToggle)
+				.catch(err => {
+					console.error(`toggle error: ${err}`);
+					updateToggle(false);
+				});
+		} else if (configList.includes(name)) {						// submenu checkbox?
 			updateSubmenu(ev.target);
-			return;
-		}else{
-			// console.log("got click for id: " + ev.target.id );
-			// console.log("got click for name: " + ev.target.name );
-			return;
 		}
+		return
 	}
 
-	if (["h1-functions", "h1-targets", "h1-enable",	"h1-autoOpen", "h1-onOff", "h1-blacklist",	"h1-needles", "h1-types"].indexOf(id) >= 0 ) {
+	if (["h1-functions", "h1-targets", "h1-enable",	"h1-autoOpen", "h1-onOff", "h1-blacklist",	"h1-needles", "h1-types"].includes(id)) {
 		let sub = id.substr(3);
 		let formats = document.getElementById(sub);
 		formats.classList.toggle('closed');
@@ -133,17 +157,14 @@ function listener(ev) {
 		goToConfig();
 		return;
 	}
-
-	// console.log("got click for id: " + ev.target.id );
-	// console.log("got click for name: " + ev.target.name );
 }
+
 function goToConfig() {
 		let confUrl = browser.runtime.getURL("/pages/config/config.html");
 		let tab = browser.tabs.create({url:confUrl});
-		tab.then(function() {window.close()});
+		tab.then(() => window.close());
 		return;
 }
-
 
 amIOn().then(updateToggle);
 document.addEventListener("click", listener);

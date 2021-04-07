@@ -188,18 +188,30 @@ var config =  {
 			"open" : true,
 			"default" : colNone,
 			"highlight" : colGreen
-		}, "winname" : {
-			"pretty" : "window.name Search",
-			"use" : true,
-			"open" : true,
-			"default" : colNone,
-			"highlight" : colGreen
 		}, "fragment" : {
 			"pretty" : "Fragment Search",
 			"use" : true,
 			"open" : true,
 			"default" : colNone,
 			"highlight" : colGreen
+		}, "winname" : {
+			"pretty" : "window.name Search",
+			"use" : true,
+			"open" : true,
+			"default" : colNone,
+			"highlight" : colGreen
+		}, "cookie" : {
+			"pretty"	: "Cookie Search",
+			"use"		: true,
+			"open"		: true,
+			"default"	: "color: none",
+			"highlight" : "color: colGreen"
+		}, "localStore" : {
+			"pretty"	: "localStorrage",
+			"use"		: true,
+			"open"		: true,
+			"default"	: "color: none",
+			"highlight" : "color: yellow"
 		}, "stack" : {
 			"pretty" : "Stack Display",
 			"use" : true,
@@ -215,5 +227,3 @@ var config =  {
 	"functions" : ["eval","setter(innerHTML)","setter(outerHTML)","document.write","document.writeln"],
 	"types" : ["string"],
 };
-
-

@@ -1,94 +1,84 @@
 var configList = ["targets", "needles",  "blacklist", "functions"];
+var normalHeaders = ["enabled", "name", "pattern"]; 
+var formatsHeader = ["default", "highlight"];
+
+function getTableData(tblName) {
+	let headers = tblName === "formats" ? formatsHeader : normalHeaders;
+	let tbl = document.getElementById(`${tblName}-form`);
+	let tblData = [];
+	for (let row of tbl.querySelectorAll(".row:not(:first-child)")) {
+		let obj = {};
+		obj.row = row;
+
+		for (let h of headers) {
+			let input = row.querySelector(`input[name='${h}']`);
+			if (input.type === "checkbox") {
+				obj[h] = input.checked;
+			} else {
+				obj[h] = input.value;
+			}
+		}
+		tblData.push(obj);
+	}
+	return tblData;
+}
 
 // check entire table for updates that have not been saved
 // we get the whole table info from local storage, may as well check it all?
 function unsavedTable(tblName) {
-	let headers = ["enabled", "name", "pattern"];
-	if (tblName === "formats") {
-		headers = ["default", "highlight"];
+	function markSaved(v) {
+		let butt = document.getElementById(`save-${tblName}`);
+		if (v) {
+			butt.disabled = true;
+		} else {
+			butt.classList.remove("saved");
+			butt.disabled = false;
+		}
 	}
 
-	let tbl = document.getElementById(`${tblName}-form`);
-	function getTableData() {
-		let promise = new Promise(function(res,fail) {
-			let tblData = [];
-			for (let row of tbl.querySelectorAll(".row:not(:first-child)")) {
-				let obj = {};
-				obj.row = row;
+	function compareFormatData(saved, tblData) {
+		// size does not change, so one to one comparison
+		for (let i in saved) {
+			let name = tblData[i].row.querySelector("input:disabled").name;
 
-				for (let h of headers) {
-					let input = row.querySelector(`input[name='${h}']`);
-					if (input.type === "checkbox") {
-						obj[h] = input.checked;
-					}else{
-						obj[h] = input.value;
-					}
-				}
-				tblData.push(obj);
+			if (name != saved[i].name) {
+				throw "Color table does not align with formats";
 			}
-			res(tblData);
-		});
-
-		return promise;
-	}
-
-	function markSaved() {
-		let butt = document.getElementById(`save-${tblName}`);
-		butt.disabled = true;
-	}
-
-	function markUnsaved() {
-		let butt = document.getElementById(`save-${tblName}`);
-		butt.classList.remove("saved");
-		butt.disabled = false;
-	}
-
-	function compareFormatData(saveData, tblData) {
-		for (let row of tblData) {
-			let name = row.row.querySelector("input:disabled").name;
-			for (let h of headers) {
-				if (row[h] !== saveData[name][h]) {
-					markUnsaved();
+			for (let h of formatsHeader) {
+				if (tblData[i][h] != saved[i][h]) {
+					markSaved(false);
 					return;
 				}
 			}
 		}
-		markSaved();
+		markSaved(true);
 	}
 
-	function compareData(args) {
-		let saveData = args[0][tblName];
-		let tblData = args[1];
+	function compareData(saveData) {
+		let tblData = getTableData(tblName);
+		let saved = saveData[tblName];
 		if (tblName == "formats") {
-			return compareFormatData(saveData, tblData);
+			return compareFormatData(saved, tblData);
 		}
-		let unsaved = false;
-
-		if (saveData.length !== tblData.length) {
-			markUnsaved();
+		if (saved.length !== tblData.length) {
+			markSaved(false);
 			return;
 		}
 
 		for (let i=0; i<tblData.length; i++) {
-			for (let h of headers) {
-				if (saveData[i][h] != tblData[i][h]) {
-					markUnsaved();
+			for (let h of normalHeaders) {
+				if (saved[i][h] != tblData[i][h]) {
+					markSaved(false);
 					return;
 				}
 			}
 		}
-		markSaved();
+		markSaved(true);
 		return;
 	}
 
-	function allErr(err) {
-		console.error("failed to check table save state: %s", err);
-	}
-
-	/* getTableData().then(allErr, allErr); */
-	let all = Promise.all([browser.storage.local.get(tblName), getTableData()]);
-	all.then(compareData);
-	all.catch(allErr);
+	browser.storage.local.get(tblName)
+		.then(compareData);
 }
 
 function createField(name, value, tblName) {
@@ -101,7 +91,7 @@ function createField(name, value, tblName) {
 	input.onblur = function(e) {
 		validate(e.target);
 		unsavedTable(tblName);
-	}; // in validate.js
+	};
 
 	div.appendChild(input);
 	return div;
@@ -126,9 +116,9 @@ function defAddRow(tblName, ex, focus=false) {
 			}
 			row.remove();
 			delRow.remove();
-			unsavedTable(tblName);
 		}
 	}
+
 	function createSwitch() {
 		let div = document.createElement("div");
 		div.className = "cell";
@@ -138,7 +128,7 @@ function defAddRow(tblName, ex, focus=false) {
 		input.type = "checkbox";
 		input.name = "enabled";
 		input.checked = ex.enabled;
-		input.onclick = function() {unsavedTable(tblName)};
+		input.onclick = () => unsavedTable(tblName);
 
 		let slider = document.createElement("div");
 		slider.className = "slider";
@@ -174,50 +164,41 @@ function defAddRow(tblName, ex, focus=false) {
 	}
 }
 
+function colorSave() {
+	function saveIt(res) {
+		let saved = res.formats;
+		let tblData = getTableData("formats");
+
+		for (let i in saved) {
+			for (let h of formatsHeader) {
+				saved[i][h] = tblData[i][h];
+			}
+		}
+		browser.storage.local.set(res)
+		.then(updateBackground)
+		.then(unsavedTable("formats"));
+	}
+
+	browser.storage.local.get("formats")
+		.then(saveIt);
+}
+
 function getDefElements(form) {
 	var all = [];
 	var i = 0;
 	for (var input of form.elements) {
 		if (input.name === "enabled") {
 			all.push({"enabled" : input.checked});
-		}else if (input.name === "name") {
+		} else if (input.name === "name") {
 			all[i]["name"] = input.value;
-		}else if (input.name === "pattern") {
+		} else if (input.name === "pattern") {
 			all[i]["pattern"] = input.value;
 			i++;
-		}else{
+		} else {
 			console.dir(input);
 		}
 	}
 	return all;
-}
-
-function colorSave() {
-	// slightly different then other tables, so set it appart
-	function saveErr(err) {
-		console.error("Error saving colors: %s", err);
-	}
-
-	function saveIt(res) {
-		if (!res.formats) {
-			saveErr("formats not returned");
-			return false;
-		}
-		let colors = getColorInfo();
-		let formats = res.formats;
-		for (let i in colors) {
-			formats[i].default = colors[i].default;
-			formats[i].highlight = colors[i].highlight;
-		}
-		let storeIt = browser.storage.local.set({"formats" : formats });
-		storeIt.then(updateBackground).then(unsavedTable("formats"));
-		storeIt.catch(saveErr);
-	}
-
-	let result = browser.storage.local.get("formats");
-	result.then(saveIt);
-	result.catch(saveErr);
-
 }
 
 function saveTable(tblName) {
@@ -225,23 +206,20 @@ function saveTable(tblName) {
 		return;
 	}
 
-	function saveErr(err) {
-		console.error("Error saving table %s", err);
-	}
 	var tbl = document.getElementById(`${tblName}-form`);
 	var data = {};
 	data[tblName] = getDefElements(tbl);
 
-	let storeIt  = browser.storage.local.set(data);
-	storeIt.then(updateBackground);
-	storeIt.catch(saveErr);
+	browser.storage.local.set(data)
+		.then(updateBackground);
 }
 
 function onLoad() {
 	function appendDefault(tblName) {
 		var example = { "name" : "", "enabled" : true, "pattern" : "" }
-		defAddRow(tblName, example, true);
+		defAddRow(tblName, example, true, true);
 	}
+
 	function writeDOM(res) {
 		for (let sub of configList) {
 			if (!res[sub]) {
@@ -249,7 +227,7 @@ function onLoad() {
 			}
 
 			for (let itr of res[sub]) {
-				defAddRow(sub, itr);
+				defAddRow(sub, itr, false, true);
 			}
 		}
 		for (let sub of configList) {
@@ -296,10 +274,10 @@ function populateColors() {
 		return col;
 	}
 
-	function createRow(fmt, name) {
+	function createRow(fmt) {
 		var row = document.createElement("div");
 		row.className = "row";
-		row.appendChild(createInptCol(name, fmt.pretty, true));
+		row.appendChild(createInptCol(fmt.name, fmt.pretty, true));
 		row.appendChild(createInptCol("default", fmt.default));
 		row.appendChild(createInptCol("highlight", fmt.highlight));
 		return row;
@@ -313,16 +291,11 @@ function populateColors() {
 		}
 
 		let tbl = document.getElementById("formats-form");
-		let names = ["title", "interesting", "args", "needle", "query", "fragment", "winname", "stack"];
+		let names = ["title", "interesting", "args", "needle", "query", "fragment", "winname", "cookie", "localStore", "stack"];
 
-		for (let name of names) {
-			if (!formats[name]) {
-				console.warn("could not find '%s' in formats", name);
-				continue;
-			}
-			tbl.appendChild(createRow(formats[name], name));
+		for (let i of formats) {
+			tbl.appendChild(createRow(i));
 		}
-
 		return true;
 	}
 
@@ -336,81 +309,15 @@ function populateColors() {
 	document.getElementById("test-formats").onclick = colorTest;
 }
 
-// gets it from the table, not from the local storage
-function getColorInfo() {
-	var colors = {};
-	function rowToData(row) {
-		let fmt = {};
-		let name = row.querySelector("input:disabled").name;
-		fmt.default = row.querySelector("input[name='default']").value;
-		fmt.highlight = row.querySelector("input[name='highlight']").value;
-		colors[name] = fmt;
-	}
-	var tbl = document.getElementById("formats-form");
-	let rows = tbl.querySelectorAll(".row:not(:first-child)"); // skip first title row
-
-	for (let row of rows) {
-		rowToData(row);
-	}
-	return colors;
-}
-
 // Should reflect switcheroo.js printing
 function colorTest() {
-	var colors = getColorInfo();
-	let argStr = "Argument string (needle, query, fragment, winname)";
-
-	function testArgs() {
-		let format = colors.args;
-		let argTitle = "%carg: "
-		console.group(argTitle, format.default);
-		console.log("%c%s", format.highlight, argStr);
-		console.groupEnd(argTitle);
-	}
-	function hlSearch(sName) {
-		let defColor = colors[sName].default;
-		let hiColor  = colors[sName].highlight;
-		let titleStr = "%c%s %c%s%c found";
-
-		console.group(titleStr, defColor, sName, hiColor, sName, defColor);
-		let loc = argStr.indexOf(sName);
-		let start = argStr.substr(0, loc);
-		let end = argStr.substr(loc+sName.length);
-
-		console.log("%c%s%c%s%c%s",
-			defColor, start,
-			hiColor, sName,
-			defColor, end
-		);
-		console.groupEnd(titleStr);
-	}
-	function testStack() {
-		let stackFormat = colors.stack;
-		let stackTitle = "%cstack: "
-		console.group(stackTitle, stackFormat.default);
-		console.trace();
-		console.groupEnd(stackTitle);
-	}
-
-
-	for (let c of ["interesting", "title"]	) {
-		// title string
-		let title = "%c[EV] %c%s%c %s"
-		let format = colors[c];
-		console.group(
-			title, format.default, format.highlight, "eval", format.default,
-			location.href
-		);
-		if (c == "title") {
-			testArgs();
-			for (let t of ["needle", "query", "fragment", "winname"]) {
-				hlSearch(t);
-			}
-			testStack();
-		}
-		console.groupEnd(title);
-	}
-
+	browser.storage.local.get("formats").then(x => {
+		for (let i of x.formats) {
+			console.log("[%s] %cDefault %chighlighted",
+				i.name, i.default, i.highlight
+			);
+		  }
+	});
 }
 
 window.addEventListener('load', onLoad);

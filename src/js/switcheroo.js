@@ -6,6 +6,8 @@ var rewriter = function(CONFIG) {
 		winname : [],
 		fragment : [],
 		query : [],
+		cookies : [],
+		localStorrage : [],
 	};
 
 	function invalidArgType(arg, num, argType) {
@@ -19,7 +21,7 @@ var rewriter = function(CONFIG) {
 			hl, argType
 		);
 		real.logGroup("args:");
-		console.dir(arg);
+		real.dir(arg);
 		real.logGroupEnd("args array:");
 		real.logGroupCollapsed("trace:");
 		real.trace();
@@ -219,7 +221,7 @@ var rewriter = function(CONFIG) {
 					ret.push(m);
 					holder = holder.substr(holder.indexOf(m)+m.length);
 					if (prevLast >= needle.lastIndex) {
-						console.warn("[EV] Attempting to highlight matches for this regex will cause infinite loop, stopping")
+						real.warn("[EV] Attempting to highlight matches for this regex will cause infinite loop, stopping")
 						break;
 					}
 					prevLast = needle.lastIndex;
@@ -264,6 +266,7 @@ var rewriter = function(CONFIG) {
 
 		// update search lists with changing input first
 		addChangingSearch();
+
 
 		let ret = [];
 		// do all tests
@@ -343,8 +346,8 @@ var rewriter = function(CONFIG) {
 	*/
 	function applyEvalVillain(name) {
 		function hookErr(err, args, name) {
-			console.warn("[EV] (%s) hook encountered an error: %s", name, err.message);
-			console.dir(args);
+			real.warn("[EV] (%s) hook encountered an error: %s", name, err.message);
+			real.dir(args);
 		}
 		var where = window;
 		var leaf = name;
@@ -386,7 +389,7 @@ var rewriter = function(CONFIG) {
 				try {
 					obj[i] = new RegExp(match[1], match[2] === undefined ? "" : match[2]);
 				} catch (err) {
-					console.warn("[EV] Creating regex %s error: %s", obj[i].name, err.message);
+					real.warn("[EV] Creating regex %s error: %s", obj[i].name, err.message);
 				}
 			}
 		}
@@ -506,7 +509,7 @@ var rewriter = function(CONFIG) {
 			}
 			if (!decoded) {
 				yield [s, decoded];
-				decoded = `"${s.replaceAll('"', '\\"')}"`
+				decoded = `"${s.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`
 			} else {
 				yield [s, decoded];
 			}
@@ -586,19 +589,51 @@ var rewriter = function(CONFIG) {
 				let match = false;
 				while (match = re.exec(query)) {
 					if (loop++ > 200) {
-						console.warn("[EV] More then 200 parameters?");
+						real.warn("[EV] More then 200 parameters?");
 						break;
 					}
 					let param = `query[${match[1]}]`;
 					let needle = match[2];
 
 					addToSearch(true, "query", {
-						name:		param,
+						name: param,
 						search: needle,
 						format: formats.query,
 					});
 				} // while regex loop
 			} // if query.length
+		}
+
+		// cookies
+		if (formats.cookie.use) {
+			for (let i of document.cookie.split(/;\s*/)) {
+				let s = i.split("=");
+				if (s.length >= 2) {
+					addToSearch(true, "cookies", {
+						name: `cookie[${s[0]}]`,
+						search: s[1],
+						format: formats.cookie,
+					});
+				} else {
+					addToSearch(true, "cookies", {
+						name: `cookie`,
+						search: s[0],
+						format: formats.cookie,
+					});
+				}
+			}
+		}
+
+		if (formats.localStore.use){
+			let l = localStorage.length;
+			for (let i=0; i<l; i++) {
+				let name = localStorage.key(i);
+				addToSearch(true, "localStorrage", {
+					name: `localStorrage[${name}]`,
+					search: localStorage.getItem(name),
+					format: formats.localStore,
+				});
+			}
 		}
 
 		addChangingSearch();
@@ -607,6 +642,8 @@ var rewriter = function(CONFIG) {
 	// grab real functions before hooking
 	var real = {
 		log : console.log,
+		warn : console.warn,
+		dir : console.dir,
 		jsonParse : JSON.parse,
 		logGroup : console.group,
 		logGroupEnd : console.groupEnd,
@@ -631,8 +668,6 @@ var rewriter = function(CONFIG) {
 		document.domain,
 		CONFIG.formats.interesting.default
 	);
-
-	// building list of search stuff
 }
 
 /*
