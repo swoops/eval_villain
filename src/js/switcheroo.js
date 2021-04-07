@@ -250,15 +250,17 @@ var rewriter = function(CONFIG) {
 				title.push(" found");
 			}
 
-			if (s.decode) {
-				title.push(" derived by: ", s.decode);
-			}
-
 			let end = zebraGroup(
 				title,
 				s.format.default, s.format.highlight,
 				s.format.open
 			);
+			if (s.decode) {
+				let d = "Encoder function:";
+				real.logGroupCollapsed(d);
+				real.log(`encoder = x => {\n${s.decode}\treturn x;\n}//`);
+				real.logGroupEnd(d);
+			}
 			let ar = hlSlice(arg.str, s.search);
 			zebraLog(ar, s.format.default, s.format.highlight);
 			real.logGroupEnd(end);
@@ -475,26 +477,25 @@ var rewriter = function(CONFIG) {
 			return true;
 		}
 
-		function* decodeAny(any, decoded) {
-			switch (typeof(any)) {
-			case "array":
-				yield* decodeArray(any, decoded);
-			case "object":
-				yield* decodeObject(any, decoded);
-			default:
-				yield* decodeAll(any, decoded);
+		function* decodeAny(any, decoded, fwd) {
+			if (Array.isArray(any)) {
+				yield* decodeArray(any, decoded, fwd);
+			} else if (typeof(any) == "object"){
+				yield* decodeObject(any, decoded, fwd);
+			} else {
+				yield* decodeAll(any, fwd + "= x;\n"+ decoded);
 			}
 		}
 
-		function* decodeArray(a, decoded) {
+		function* decodeArray(a, decoded, fwd) {
 			for (let i in a) {
-				yield* decodeAny(a[i], `${decoded}[${i}]`);
+				yield* decodeAny(a[i], decoded, fwd+`[${i}]`);
 			}
 		}
 
-		function* decodeObject(o, decoded) {
+		function* decodeObject(o, decoded, fwd) {
 			for (let prop in o) {
-				yield* decodeAny(o[prop], `${decoded}["${prop}"]`);
+				yield* decodeAny(o[prop], decoded, fwd+`["${JSON.stringify(prop)}"]`);
 			}
 		}
 		/**
@@ -503,41 +504,35 @@ var rewriter = function(CONFIG) {
 		* @decoded {string} string representing deocoding method
 		*
 		**/
-		function* decodeAll(s, decoded) {
+		function* decodeAll(s, decoded="") {
 			if (isNeedleBad (s)) {
 				return;
 			}
-			if (!decoded) {
-				yield [s, decoded];
-				decoded = `"${s.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`
-			} else {
-				yield [s, decoded];
-			}
+			yield [s, decoded];
 
 			// JSON
-			var dec = null;
 			try {
-				dec = real.jsonParse(s);
+				let dec = real.jsonParse(s);
+				if (dec) {
+					let fwd = `\t{\n\t\tlet _ = ${s};\n\t\t_`;
+					yield* decodeAny(dec, `\t\tx = JSON.stringify(_);\n\t}\n${decoded}`, fwd);
+					return;
+				}
 			} catch (_) {};
-			if (dec) {
-				yield* decodeAny(dec, `JSON.parse(${decoded})`);
-				return;
-			}
 
 			// atob
-			dec = null;
 			try {
-				dec = bdecode(s);
+				let dec = myatob(s);
+				if (dec) {
+					yield* decodeAll(dec, `\tx = btoa(x);\n${decoded}`);
+					return;
+				}
 			} catch (_) {};
-			if (dec) {
-				yield* decodeAll(dec, `atob(${decoded})`);
-				return;
-			}
 
 			// string replace
-			dec = s.replaceAll("+", " ");
+			let dec = s.replaceAll("+", " ");
 			if (dec !== s) {
-				yield* decodeAll(dec, `${decoded}.replaceAll("+", " ")`);
+				yield* decodeAll(dec, `\tx = x.replaceAll("+", " ");\n${decoded}`);
 			}
 
 			if (!s.includes("%")) {
@@ -545,22 +540,20 @@ var rewriter = function(CONFIG) {
 			}
 
 			// match all of them
-			dec = null;
 			try {
-				dec = real.decodeURIComponent(s);
+				let dec = real.decodeURIComponent(s);
+				if (dec && dec != s) {
+					yield* decodeAll(dec, `\tx = encodeURIComponent(x);\n${decoded}`);
+				}
 			} catch(_){}
-			if (dec && dec != s) {
-				yield* decodeAll(dec, `decodeURIComponent(${decoded})`);
-			}
 
 			// match all of them
-			dec = null;
 			try {
-				dec = real.decodeURI(s);
+				let dec = real.decodeURI(s);
+				if (dec && dec != s) {
+					yield* decodeAll(dec, `\tx = encodeURIComponent(x);\n${decoded}`);
+				}
 			} catch(_){}
-			if (dec && dec != s) {
-				yield* decodeAll(dec, `decodeURI(${decoded})`);
-			}
 		}
 	}
 
@@ -652,7 +645,7 @@ var rewriter = function(CONFIG) {
 		decodeURIComponent : decodeURIComponent,
 		decodeURI : decodeURI,
 	}
-	var bdecode = atob;
+	myatob = atob;
 	for (let name of CONFIG["functions"]) {
 		applyEvalVillain(name);
 	}
