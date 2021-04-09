@@ -154,14 +154,17 @@ var rewriter = function(CONFIG) {
 		return args;
 	}
 
-	function zebraLog(arr, fmt1, fmt2) {
-		real.log(...zebraBuild(arr,fmt1,fmt2));
+	function zebraLog(arr, fmt) {
+		real.log(...zebraBuild(arr, fmt.default, fmt.highlight));
 	}
 
-	function zebraGroup(arr, fmt1, fmt2, open) {
-		let a = zebraBuild(arr,fmt1,fmt2);
-		let f = open ? real.logGroup : real.logGroupCollapsed;
-		f(...a);
+	function zebraGroup(arr, fmt) {
+		let a = zebraBuild(arr, fmt.default, fmt.highlight);
+		if (fmt.open) {
+			real.logGroup(...a);
+		} else {
+			real.logGroupCollapsed(...a);
+		}
 		return a[0];
 	}
 
@@ -171,30 +174,6 @@ var rewriter = function(CONFIG) {
 	* @argObj {Array} args array of arguments
 	**/
 	function getInterest(argObj) {
-		function highlightWords(sName, str, word, alt=false) {
-			var defColor = formats[sName].default;
-			var hiColor  = formats[sName].highlight;
-			var titleStr = "%c%s: %c%s%c found";
-			let titleArgs = [
-				defColor, sName,
-				hiColor, word, defColor,
-			];
-
-			if (typeof(argNum) == 'number') {
-					titleStr += " (arg:%c%d%c)";
-					titleArgs.push(hiColor, argNum, defColor);
-			}
-			if (alt) {
-				titleStr += " -> %c" + alt;
-				titleArgs.push(hiColor);
-			}
-
-			if (formats[sName].open)
-				real.logGroup(titleStr, ...titleArgs);
-			else
-				real.logGroupCollapsed(titleStr, ...titleArgs);
-		} // end highlightWords
-
 		function hlSlice(str, needle) {
 			let ret = [];
 			if (typeof(needle) === "string") {
@@ -243,18 +222,29 @@ var rewriter = function(CONFIG) {
 		}
 
 		function printer(s, arg) {
-			let title = [s.name+": ", s.search];
+			let word = s.search;
+			let dots = "";
+			if (word.length > 80) {
+				dots = "..."
+				word = s.search.substr(0, 77);
+			}
+			let title = [s.name+": ", word];
 			if (argObj.len > 1) {
-				title.push(" found (arg:", arg.num, ")");
+				title.push(`${dots} found (arg:`, arg.num, ")");
 			} else {
-				title.push(" found");
+				title.push(`${dots} found`);
+			}
+			if (s.decode) {
+				title.push(" [Decoded]");
 			}
 
-			let end = zebraGroup(
-				title,
-				s.format.default, s.format.highlight,
-				s.format.open
-			);
+			let end = zebraGroup(title, s.format);
+			if (dots) {
+				let d = "Entire needle:"
+				real.logGroupCollapsed(d);
+				real.log(s.search);
+				real.logGroupEnd(d);
+			}
 			if (s.decode) {
 				let d = "Encoder function:";
 				real.logGroupCollapsed(d);
@@ -262,7 +252,7 @@ var rewriter = function(CONFIG) {
 				real.logGroupEnd(d);
 			}
 			let ar = hlSlice(arg.str, s.search);
-			zebraLog(ar, s.format.default, s.format.highlight);
+			zebraLog(ar, s.format);
 			real.logGroupEnd(end);
 		}
 
@@ -495,7 +485,7 @@ var rewriter = function(CONFIG) {
 
 		function* decodeObject(o, decoded, fwd) {
 			for (let prop in o) {
-				yield* decodeAny(o[prop], decoded, fwd+`["${JSON.stringify(prop)}"]`);
+				yield* decodeAny(o[prop], decoded, fwd+`[${JSON.stringify(prop)}]`);
 			}
 		}
 		/**
