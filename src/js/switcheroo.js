@@ -174,30 +174,6 @@ var rewriter = function(CONFIG) {
 	* @argObj {Array} args array of arguments
 	**/
 	function getInterest(argObj) {
-		function highlightWords(sName, str, word, alt=false) {
-			var defColor = formats[sName].default;
-			var hiColor  = formats[sName].highlight;
-			var titleStr = "%c%s: %c%s%c found";
-			let titleArgs = [
-				defColor, sName,
-				hiColor, word, defColor,
-			];
-
-			if (typeof(argNum) == 'number') {
-					titleStr += " (arg:%c%d%c)";
-					titleArgs.push(hiColor, argNum, defColor);
-			}
-			if (alt) {
-				titleStr += " -> %c" + alt;
-				titleArgs.push(hiColor);
-			}
-
-			if (formats[sName].open)
-				real.logGroup(titleStr, ...titleArgs);
-			else
-				real.logGroupCollapsed(titleStr, ...titleArgs);
-		} // end highlightWords
-
 		function hlSlice(str, needle) {
 			let ret = [];
 			if (typeof(needle) === "string") {
