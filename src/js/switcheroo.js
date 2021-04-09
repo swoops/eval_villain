@@ -154,14 +154,17 @@ var rewriter = function(CONFIG) {
 		return args;
 	}
 
-	function zebraLog(arr, fmt1, fmt2) {
-		real.log(...zebraBuild(arr,fmt1,fmt2));
+	function zebraLog(arr, fmt) {
+		real.log(...zebraBuild(arr, fmt.default, fmt.highlight));
 	}
 
-	function zebraGroup(arr, fmt1, fmt2, open) {
-		let a = zebraBuild(arr,fmt1,fmt2);
-		let f = open ? real.logGroup : real.logGroupCollapsed;
-		f(...a);
+	function zebraGroup(arr, fmt) {
+		let a = zebraBuild(arr, fmt.default, fmt.highlight);
+		if (fmt.open) {
+			real.logGroup(...a);
+		} else {
+			real.logGroupCollapsed(...a);
+		}
 		return a[0];
 	}
 
@@ -250,11 +253,7 @@ var rewriter = function(CONFIG) {
 				title.push(" found");
 			}
 
-			let end = zebraGroup(
-				title,
-				s.format.default, s.format.highlight,
-				s.format.open
-			);
+			let end = zebraGroup(title, s.format);
 			if (s.decode) {
 				let d = "Encoder function:";
 				real.logGroupCollapsed(d);
@@ -262,7 +261,7 @@ var rewriter = function(CONFIG) {
 				real.logGroupEnd(d);
 			}
 			let ar = hlSlice(arg.str, s.search);
-			zebraLog(ar, s.format.default, s.format.highlight);
+			zebraLog(ar, s.format);
 			real.logGroupEnd(end);
 		}
 
