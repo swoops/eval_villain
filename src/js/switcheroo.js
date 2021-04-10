@@ -222,14 +222,29 @@ var rewriter = function(CONFIG) {
 		}
 
 		function printer(s, arg) {
-			let title = [s.name+": ", s.search];
+			let word = s.search;
+			let dots = "";
+			if (word.length > 80) {
+				dots = "..."
+				word = s.search.substr(0, 77);
+			}
+			let title = [s.name+": ", word];
 			if (argObj.len > 1) {
-				title.push(" found (arg:", arg.num, ")");
+				title.push(`${dots} found (arg:`, arg.num, ")");
 			} else {
-				title.push(" found");
+				title.push(`${dots} found`);
+			}
+			if (s.decode) {
+				title.push(" [Decoded]");
 			}
 
 			let end = zebraGroup(title, s.format);
+			if (dots) {
+				let d = "Entire needle:"
+				real.logGroupCollapsed(d);
+				real.log(s.search);
+				real.logGroupEnd(d);
+			}
 			if (s.decode) {
 				let d = "Encoder function:";
 				real.logGroupCollapsed(d);
@@ -470,7 +485,7 @@ var rewriter = function(CONFIG) {
 
 		function* decodeObject(o, decoded, fwd) {
 			for (let prop in o) {
-				yield* decodeAny(o[prop], decoded, fwd+`["${JSON.stringify(prop)}"]`);
+				yield* decodeAny(o[prop], decoded, fwd+`[${JSON.stringify(prop)}]`);
 			}
 		}
 		/**
