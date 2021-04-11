@@ -7,19 +7,9 @@ eval, and warn you of their use.
 
 ## Why
 
-JavaScript is commonly Minified, compiled and or obfuscated. It is also bloated
-with worthless code (re-implement `atob` for IE<10). This tools lets me focus
-on the important things and ensures I don't miss the easy things.
-
-## Video
-Here are links to video segments walking through all this stuff.
-
-* Video intro: [here](https://vimeo.com/365789766)
-* What is DOM XSS (skip rant): [here](https://vimeo.com/365789766#t=1:36)
-* Just show me Eval Villain (skip DOM XSS explained): [here](https://vimeo.com/365789766#t=3:55)
-* Skip to needle example (search JS input with regex): [here](https://vimeo.com/365789766#t=5:28)
-
-HTML used in video is found [here](https://github.com/swoops/ev_slides)
+EV dramaticly simplifies the discovery of many, otherwise difficult, DOM XSS
+vulnerabilities. EV can also be used to simplify the reverse engenering or
+debugging of JavaScript.
 
 ## adding it to firefox
 
@@ -32,9 +22,6 @@ Eval Villain will inject it's own henchmen into the page to keep an eye on some
 of the more nefarious JavaScript functions. When one of those functions is
 called, a notification will appear in the console. If it is of particular
 interest it will be highlighted and formatted more strongly.
-
-Check out the video above to see it being used. I would start
-[here](https://vimeo.com/365789766#t=3:55).
 
 ## Some Terminology
 You can probably skip this, if you don't understand how I use a term later,
