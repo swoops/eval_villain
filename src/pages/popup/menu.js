@@ -122,7 +122,10 @@ function updateSubmenu(target) {
 		name = "formats";
 	}
 	browser.storage.local.get(name)
-		.then(update).then(updateBackground).then(updateToggle)
+		.then(update)
+		.then(updateBackground)
+		.then(amIOn)
+		.then(updateToggle)
 		.catch(err => console.error("failed to get storrage: " + err));
 }
 

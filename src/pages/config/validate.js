@@ -16,6 +16,17 @@ function validateTable(tblName) {
 			}
 		}
 	}
+	let names = new Set();
+	for (let name of form.querySelectorAll("input[name=name]")) {
+		if (names.has(name.value)) {
+			console.log("Duplciate name");
+			gotError(name, tblName, `Duplicate name "${name.value}"`);
+			erCount++;
+		} else {
+			names.add(name.value);
+		}
+	}
+
 	if (erCount > 0) {
 		errors[tblName][0].dom.focus();
 		return false;
