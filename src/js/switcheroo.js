@@ -7,7 +7,7 @@ var rewriter = function(CONFIG) {
 		fragment : [],
 		query : [],
 		cookies : [],
-		localStorrage : [],
+		localStorage : [],
 	};
 
 	function invalidArgType(arg, num, argType) {
@@ -228,7 +228,10 @@ var rewriter = function(CONFIG) {
 				dots = "..."
 				word = s.search.substr(0, 77);
 			}
-			let title = [s.name+": ", word];
+			let title = [
+				s.param ? `${s.name}[${s.param}]:` : `${s.name}:`,
+				word
+			];
 			if (argObj.len > 1) {
 				title.push(`${dots} found (arg:`, arg.num, ")");
 			} else {
@@ -248,7 +251,30 @@ var rewriter = function(CONFIG) {
 			if (s.decode) {
 				let d = "Encoder function:";
 				real.logGroupCollapsed(d);
-				real.log(`encoder = x => {\n${s.decode}\treturn x;\n}//`);
+				let add = "\t";
+				let pmtwo = false;
+				switch (s.name) {
+				case "localStorage":
+					if (!s.param) break;
+					add += `if (y) localStorage.setItem("${s.param}", x);\n\t`;
+					pmtwo = true;
+					break;
+				case "query":
+					if (!s.param) break;
+					add +=  `let _ = new URL(window.location.href);\n\t`
+					add += `// next line might need some changes\n\t`;
+					add += `_.searchParams.set('${s.param}', decodeURIComponent(x));\n\t`;
+					add += `x = {href: _.href, param: x};\n\t`;
+					add += `if (y) window.location = x.href;\n\t`
+					pmtwo = true;
+					break;
+				case "window.name":
+					add +=  `if (y) window.name = x;\n\t`
+					pmtwo = true;
+					break;
+				}
+
+				real.log(`encoder = ${pmtwo ? "(x, y)" : "x"} => {\n${s.decode}${add}return x;\n}//`);
 				real.logGroupEnd(d);
 			}
 			let ar = hlSlice(arg.str, s.search);
@@ -422,6 +448,7 @@ var rewriter = function(CONFIG) {
 		for (let tup of decodeAll(sObj.search)) {
 			if (!addIt(addTo, {
 				name: sObj.name,
+				param: sObj.param,
 				search: tup[0],
 				format: sObj.format,
 				decode: tup[1],
@@ -575,12 +602,10 @@ var rewriter = function(CONFIG) {
 						real.warn("[EV] More then 200 parameters?");
 						break;
 					}
-					let param = `query[${match[1]}]`;
-					let needle = match[2];
-
 					addToSearch(true, "query", {
-						name: param,
-						search: needle,
+						name: "query",
+						param: match[1],
+						search: match[2],
 						format: formats.query,
 					});
 				} // while regex loop
@@ -593,7 +618,8 @@ var rewriter = function(CONFIG) {
 				let s = i.split("=");
 				if (s.length >= 2) {
 					addToSearch(true, "cookies", {
-						name: `cookie[${s[0]}]`,
+						name: "cookie",
+						param: s[0],
 						search: s[1],
 						format: formats.cookie,
 					});
@@ -611,8 +637,9 @@ var rewriter = function(CONFIG) {
 			let l = localStorage.length;
 			for (let i=0; i<l; i++) {
 				let name = localStorage.key(i);
-				addToSearch(true, "localStorrage", {
-					name: `localStorrage[${name}]`,
+				addToSearch(true, "localStorage", {
+					name: `localStorage`,
+					param: name,
 					search: localStorage.getItem(name),
 					format: formats.localStore,
 				});
