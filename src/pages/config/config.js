@@ -116,6 +116,7 @@ function defAddRow(tblName, ex, focus=false) {
 			}
 			row.remove();
 			delRow.remove();
+			unsavedTable(tblName);
 		}
 	}
 
@@ -150,7 +151,7 @@ function defAddRow(tblName, ex, focus=false) {
 	}
 
 	cols[0].appendChild(createSwitch());
-	cols[1].appendChild(createField("name",		 ex.name, tblName));
+	cols[1].appendChild(createField("name", ex.name, tblName));
 	cols[2].appendChild(createField("pattern", ex.pattern, tblName));
 
 	for (let c of cols) {
