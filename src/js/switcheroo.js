@@ -367,41 +367,39 @@ var rewriter = function(CONFIG) {
 	 * function: validateFunctionsPatern
 	*/
 	function applyEvalVillain(evname) {
+		function getFunc(n) {
+			let ret = {}
+			ret.where = window;
+			let groups = n.split(".");
+			let i = 0; // outside for loop for a reason
+			for (i=0; i<groups.length-1; i++) {
+				ret.where = ret.where[groups[i]];
+				if (!ret.where) {
+					return null;
+				}
+			}
+			ret.leaf = groups[i];
+			return ret ? ret : null;
+		}
+
 		function hookErr(err, args, evname) {
 			real.warn("[EV] (%s) hook encountered an error: %s", evname, err.message);
 			real.dir(args);
 		}
-		var where = window;
-		var leaf = evname;
-		var setter = /^setter\(([a-zA-Z]+)\)\s*$/.exec(evname);
-		if (setter) {
-			let orig = Object.getOwnPropertyDescriptor(Element.prototype, setter[1]).set;
-			Object.defineProperty(Element.prototype, setter[1], {
-				set: function(value) {
-					try {
-						EvalVillainHook(setter[1], arguments);
-					} catch (err) {
-						hookErr(err, arguments, evname);
-					}
-					return orig.call(this, value);
-				}
-			});
-			return;
-
+		var ownprop = /^(set|value)\(([a-zA-Z.]+)\)\s*$/.exec(evname);
+		let ep = new evProxy;
+		ep.evname = evname
+		if (ownprop) {
+			let prop = ownprop[1];
+			let f = getFunc(ownprop[2]);
+			let orig = Object.getOwnPropertyDescriptor(f.where.prototype, f.leaf)[prop];
+			Object.defineProperty(f.where.prototype, f.leaf, {[prop] : new Proxy(orig, ep)});
 		} else if (!/^[a-zA-Z.]+$/.test(evname)) {
 			real.log("[EV] name: %s invalid, not hooking", evname);
-		} else if (evname.indexOf(".") >= 0) {
-			let groups = evname.split(".");
-			let i = 0; // outside for loop for a reason
-			for (i=0; i<groups.length-1; i++) {
-				where = where[groups[i]];
-			}
-			leaf = groups[i];
+		} else {
+			let f = getFunc(evname);
+			f.where[f.leaf] = new Proxy(f.where[f.leaf], ep);
 		}
-
-		let ep = new evProxy;
-		ep.evname = evname;
-		where[leaf] = new Proxy(where[leaf], ep);
 	}
 
 	function strToRegex(obj) {
