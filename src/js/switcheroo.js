@@ -354,6 +354,10 @@ var rewriter = function(CONFIG) {
 			EvalVillainHook(this.evname, args);
 			return Reflect.apply(target, thisArg, args);
 		}
+		construct(target, args, newArg) {
+			EvalVillainHook(this.evname, args);
+			return Reflect.construct(target, args, args);
+		}
 	}
 
 	/*
