@@ -351,7 +351,7 @@ var rewriter = function(CONFIG) {
 
 	class evProxy {
 		apply(target, thisArg, args) {
-			EvalVillainHook(this.name, args);
+			EvalVillainHook(this.evname, args);
 			return Reflect.apply(target, thisArg, args);
 		}
 	}
@@ -362,14 +362,14 @@ var rewriter = function(CONFIG) {
 	 * file: /pages/config/config.js
 	 * function: validateFunctionsPatern
 	*/
-	function applyEvalVillain(name) {
-		function hookErr(err, args, name) {
-			real.warn("[EV] (%s) hook encountered an error: %s", name, err.message);
+	function applyEvalVillain(evname) {
+		function hookErr(err, args, evname) {
+			real.warn("[EV] (%s) hook encountered an error: %s", evname, err.message);
 			real.dir(args);
 		}
 		var where = window;
-		var leaf = name;
-		var setter = /^setter\(([a-zA-Z]+)\)\s*$/.exec(name);
+		var leaf = evname;
+		var setter = /^setter\(([a-zA-Z]+)\)\s*$/.exec(evname);
 		if (setter) {
 			let orig = Object.getOwnPropertyDescriptor(Element.prototype, setter[1]).set;
 			Object.defineProperty(Element.prototype, setter[1], {
@@ -377,17 +377,17 @@ var rewriter = function(CONFIG) {
 					try {
 						EvalVillainHook(setter[1], arguments);
 					} catch (err) {
-						hookErr(err, arguments, name);
+						hookErr(err, arguments, evname);
 					}
 					return orig.call(this, value);
 				}
 			});
 			return;
 
-		} else if (!/^[a-zA-Z.]+$/.test(name)) {
-			real.log("[EV] name: %s invalid, not hooking", name);
-		} else if (name.indexOf(".") >= 0) {
-			let groups = name.split(".");
+		} else if (!/^[a-zA-Z.]+$/.test(evname)) {
+			real.log("[EV] name: %s invalid, not hooking", evname);
+		} else if (evname.indexOf(".") >= 0) {
+			let groups = evname.split(".");
 			let i = 0; // outside for loop for a reason
 			for (i=0; i<groups.length-1; i++) {
 				where = where[groups[i]];
@@ -396,7 +396,7 @@ var rewriter = function(CONFIG) {
 		}
 
 		let ep = new evProxy;
-		ep.name = name;
+		ep.evname = evname;
 		where[leaf] = new Proxy(where[leaf], ep);
 	}
 
