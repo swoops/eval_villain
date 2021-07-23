@@ -172,6 +172,21 @@ function validateTargetPatern(dom) {
  * heavily inspired by switcheroo.js, update one, update the other
 */
 function validateFunctionsPatern(dom) {
+	function getFunc(n) {
+		let ret = {}
+		ret.where = window;
+		let groups = n.split(".");
+		let i = 0; // outside for loop for a reason
+		for (i=0; i<groups.length-1; i++) {
+			ret.where = ret.where[groups[i]];
+			if (!ret.where) {
+				return null;
+			}
+		}
+		ret.leaf = groups[i];
+		return ret ? ret : null;
+	}
+
 	function funcCheck(fnc) {
 		if (typeof(fnc) !== "function") {
 			return "must be a function";
@@ -182,44 +197,44 @@ function validateFunctionsPatern(dom) {
 		}
 	}
 
-	let name = dom.value;
-	let where = window;
-	let leaf = name;
-	if (name.length === 0) {
+	let evname = dom.value;
+	if (evname.length === 0) {
 		return "can't be empty";
 	}
 
-	let setter = /^setter\(([a-zA-Z]+)\)\s*$/.exec(name);
-	if (setter) {
+	var ownprop = /^(set|value)\(([a-zA-Z.]+)\)\s*$/.exec(evname);
+	if (ownprop) {
+		let prop = ownprop[1];
+		let f = getFunc(ownprop[2]);
+		if (!f) {
+			return "Can't find in window";
+		}
 		try{
-			var fnc = Object.getOwnPropertyDescriptor(Element.prototype, setter[1]).set;
+			var orig = Object.getOwnPropertyDescriptor(f.where.prototype, f.leaf)[prop];
 		} catch(err) {
-			return "can't find setter";
+			console.error(`Err parsing ${evname}: ${err}`);
+			return `Object.getOwnPropertyDescriptor().${prop} error`;
 		}
-		if (!fnc) {
-			return "can't find setter";
+		if (!orig) {
+			return `Object.getOwnPropertyDescriptor().${prop} not found`;
 		}else{
-			return funcCheck(fnc);
+			return funcCheck(orig);
 		}
-	} else if (!/^[a-zA-Z.]+$/.test(name)) {
-		if (/[()]/.test(name)) {
+	} else if (!/^[a-zA-Z.]+$/.test(evname)) {
+		if (/[()]/.test(evname)) {
 			return "characters `(` and `)` only used for setters (ie:setter(innerHTML))";
 		}else{
 			let match = /^[a-zA-Z.]*(.)/.exec(name);
 			return `invalid character '${match[1]}'`;
 		}
-	} else if (name.indexOf(".") >= 0) {
-		for (let word of name.split(".")) {
-			if (!where[word]) {
-				return `could not find ${word}`;
-			}
-			where = where[word];
+	} else {
+		let f = getFunc(evname);
+		if (f) {
+			return funcCheck(f.where[f.leaf]);
+		} else {
+			return "Can't find in window";
 		}
-		return funcCheck(where);
 	}
-	// one word, no special chars
-	return funcCheck(where[name]);
-
 }
 
 function validateColor(dom) {
