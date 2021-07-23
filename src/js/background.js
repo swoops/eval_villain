@@ -5,23 +5,31 @@ var debug = false;
 var defaultConfig = {
 	"functions" : [
 		{
-			"name" : "Eval",
+			"name" : "eval",
 			"enabled" : true,
 			"pattern" : "eval"
 		}, {
+			"name" : "Function",
+			"enabled" : true,
+			"pattern" : "Function"
+		}, {
 			"name" : "innerHTML",
 			"enabled" : true,
-			"pattern" : "setter(innerHTML)"
+			"pattern" : "set(Element.innerHTML)"
 		}, {
 			"name" : "outerHTML",
 			"enabled" : true,
-			"pattern" : "setter(outerHTML)"
+			"pattern" : "set(Element.outerHTML)"
 		}, {
-			"name" : "doc write",
+			"name" : "createContextualFragment",
+			"enabled" : true,
+			"pattern" : "value(Range.createContextualFragment)"
+		}, {
+			"name" : "document.write",
 			"enabled" : true,
 			"pattern" : "document.write"
 		}, {
-			"name" : "doc writeln",
+			"name" : "document.writeln",
 			"enabled" : true,
 			"pattern" : "document.writeln"
 		}, {
