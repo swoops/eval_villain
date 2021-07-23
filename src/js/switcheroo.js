@@ -352,11 +352,11 @@ var rewriter = function(CONFIG) {
 	class evProxy {
 		apply(target, thisArg, args) {
 			EvalVillainHook(this.evname, args);
-			return Reflect.apply(target, thisArg, args);
+			return Reflect.apply(...arguments);
 		}
 		construct(target, args, newArg) {
 			EvalVillainHook(this.evname, args);
-			return Reflect.construct(target, args, args);
+			return Reflect.construct(...arguments);
 		}
 	}
 
