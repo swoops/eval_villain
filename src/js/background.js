@@ -114,7 +114,7 @@ var defaultConfig = {
 		{
 			"name"		: "title",
 			"pretty"	: "Normal Results",
-			"use"		: false,
+			"use"		: true,
 			"open"		: false,
 			"default"	: "color: none",
 			"highlight"	: "color: #088"
@@ -128,7 +128,7 @@ var defaultConfig = {
 		}, {
 			"name"		: "args",
 			"pretty"	: "Args Display",
-			"use"		: false,
+			"use"		: true,
 			"open"		: false,
 			"default"	: "color: none",
 			"highlight" : "color: #088"
@@ -164,14 +164,14 @@ var defaultConfig = {
 			"name"		: "cookie",
 			"pretty"	: "Cookie Search",
 			"use"		: true,
-			"open"		: true,
+			"open"		: false,
 			"default"	: "color: none",
 			"highlight" : "color: yellow"
 		}, {
 			"name"		: "localStore",
 			"pretty"	: "localStorrage",
 			"use"		: true,
-			"open"		: true,
+			"open"		: false,
 			"default"	: "color: none",
 			"highlight" : "color: yellow"
 		}, {
