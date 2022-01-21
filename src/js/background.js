@@ -199,28 +199,10 @@ function checkStorage() {
 				.then(() => console.log(`updated ${what}`));
 		}
 
-		function objarrayFix(iter) {
-			let modified = false;
-			let name = "name";
-			let curNames = new Set();
-			let defNames = new Set();
-			result[iter].forEach(x=>curNames.add(x[name]));
-			defaultConfig[iter].forEach(x=>defNames.add(x[name]));
-
-			if (result[iter].length !== curNames.size)
-				throw(`Current config has duplicates in ${iter}`);
-			if (defaultConfig[iter].length !== defNames.size)
-				throw(`Default config has duplicates in ${iter}`);
-
-			for (let elm of curNames) {
-				if (!defNames.delete(elm)) {
-					updateIt(iter);
-					return;
-				}
-			}
-			for (let elm of defNames) {
-				updateIt(iter);
-			}
+		// XXX compatability, fixing spelling error in config, remove in later
+		// version
+		if (result.hasOwnProperty("types") && result.types[0].hasOwnProperty("patern")) {
+			updateIt("types");
 		}
 
 		for (let iter in defaultConfig) {
