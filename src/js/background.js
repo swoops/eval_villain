@@ -247,10 +247,6 @@ function checkStorage() {
 
 	let allStorage = Object.keys(defaultConfig);
 
-	// XXX no longer used, remove in newer version
-	browser.storage.local.remove("autoOpen").then(x=>console.log("removed autoOpen"));
-	browser.storage.local.remove("onOff").then(x=>console.log("removed onOff"));
-
 	return browser.storage.local.get(allStorage)
 		.then(saveIfNot);
 }
