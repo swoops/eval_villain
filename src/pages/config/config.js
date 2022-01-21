@@ -253,7 +253,7 @@ function onLoad() {
 	let result = browser.storage.local.get(configList);
 	result.then(
 		writeDOM,
-		function(err) { console.error("failed to get storrage: " + err) }
+		function(err) { console.error("failed to get storage: " + err) }
 	);
 	populateColors();
 
@@ -303,7 +303,7 @@ function populateColors() {
 	let result = browser.storage.local.get("formats");
 	result.then(
 		writeDOM,
-		function(err) { console.error("failed to get storrage: " + err) }
+		function(err) { console.error("failed to get storage: " + err) }
 	);
 	// set save button
 	document.getElementById("save-formats").onclick = colorSave;

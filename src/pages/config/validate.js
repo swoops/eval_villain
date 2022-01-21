@@ -39,19 +39,19 @@ function validate(dom, tblName=null) {
 	let v = {
 		targets:	 {
 			name: validateName,
-			pattern: validateTargetPatern
+			pattern: validateTargetPattern
 		},
 		needles:	 {
 			name: validateName,
-			pattern: validateNeedlesPatern
+			pattern: validateNeedlesPattern
 		},
 		blacklist:	 {
 			name: validateName,
-			pattern: validateNeedlesPatern
+			pattern: validateNeedlesPattern
 		},
 		functions: {
 			name: validateName,
-			pattern: validateFunctionsPatern
+			pattern: validateFunctionsPattern
 		},
 		formats: {
 			default: validateColor,
@@ -124,7 +124,7 @@ function validateName(dom) {
 	}
 }
 
-function validateNeedlesPatern(dom) {
+function validateNeedlesPattern(dom) {
 	let val = dom.value;
 	let strRet = strCheck(val);
 	if (strRet) return strRet;
@@ -143,7 +143,7 @@ function validateNeedlesPatern(dom) {
 	return false;
 }
 
-function validateTargetPatern(dom) {
+function validateTargetPattern(dom) {
 	let target = dom.value;
 	let strRet = strCheck(target);
 	if (strRet) return strRet;
@@ -171,7 +171,7 @@ function validateTargetPatern(dom) {
 /*
  * heavily inspired by switcheroo.js, update one, update the other
 */
-function validateFunctionsPatern(dom) {
+function validateFunctionsPattern(dom) {
 	function getFunc(n) {
 		let ret = {}
 		ret.where = window;

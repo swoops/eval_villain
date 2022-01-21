@@ -7,24 +7,24 @@ eval, and warn you of their use.
 
 ## Why
 
-EV dramaticly simplifies the discovery of many, otherwise difficult, DOM XSS
-vulnerabilities. EV can also be used to simplify the reverse engenering or
+EV dramatically simplifies the discovery of many, otherwise difficult, DOM XSS
+vulnerabilities. EV can also be used to simplify the reverse engineering or
 debugging of JavaScript.
 
-## adding it to firefox
+## Adding it to Firefox
 
-* Go here [here](https://addons.mozilla.org/en-US/firefox/addon/eval-villain/)
-* click "Add to Firefox"
+* Go [here](https://addons.mozilla.org/en-US/firefox/addon/eval-villain/)
+* Click "Add to Firefox"
 
 ## Normal use
 Turn it on, open the console `ctrl+shift+k` and browse some sites like normal.
-Eval Villain will inject it's own henchmen into the page to keep an eye on some
+Eval Villain will inject its own henchmen into the page to keep an eye on some
 of the more nefarious JavaScript functions. When one of those functions is
 called, a notification will appear in the console. If it is of particular
-interest it will be highlighted and formatted more strongly.
+interest, it will be highlighted and formatted more strongly.
 
 ## Some Terminology
-You can probably skip this, if you don't understand how I use a term later,
+You can probably skip this. If you don't understand how I use a term later,
 come back.
 * EV: short for Eval Villain
 * Hooked Input: EV hooks native JavaScript functions in order to see what input
@@ -56,7 +56,7 @@ to the configuration page by clicking "configure" in the popup menu.
 
 ### Needles
 EV will search hooked input for each configured needle pattern. If the needle
-is found EV will consider that function call an interesting result and a Needle
+is found, EV will consider that function call an interesting result and a Needle
 section will be added to the output. The needle section will highlight the
 pattern where it is found in the input.
 
@@ -101,7 +101,7 @@ documentation](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExten
 ### functions
 These are the functions that are being hooked. Configure new ones by putting in
 a nice descriptive name and a pattern that will resolve to the function. For a
-setter, like `innerHTML` use `setter(innerHTML)`. If no functions are enabled
+setter, like `innerHTML` use `setter(innerHTML)`. If no functions are enabled,
 then Eval Villain won't be doing much, even if it is on. Since EV injects the
 page before any JavaScript in the page has loaded, only native JavaScript
 functions can be configured.
@@ -115,7 +115,7 @@ Tip:
   spam.
 
 ### Auto Open (popup only)
-In the popup menu the "Auto Open" section allows you to change how much
+In the popup menu, the "Auto Open" section allows you to change how much
 information is visible by default for each result. Enabling an auto open means
 the console group that contains the information will automatically be open.
 
@@ -123,16 +123,16 @@ Tip:
 * When working on developing a payload, auto open "Interesting Result" and
   "Needles" and configure a Needle to match your payload. You can then quickly
   see if your payload is getting filtered.
-* Stack should almost never be enabled here, it can be very large and you
+* Stack should almost never be enabled here. It can be very large and you
   likely don't need to see it for every single result.
 
 ### Console Colors
 Console output is split up into various sections. Each section has a
-highlighting format and a default format. Default is used for most the text
+highlighting format and a default format. Default is used for most of the text
 while highlight is used to highlight key words. The "Console Colors" section of
 the configuration page allows you to configure arbitrary CSS for each format.
 
-Before saving your changes be sure to test your configuration to see if it
+Before saving your changes, be sure to test your configuration to see if it
 looks good. Open the console and click the "test" button in the configuration
 page. If you like the console output then click save to keep it.
 

@@ -364,7 +364,7 @@ var rewriter = function(CONFIG) {
 	 * NOTICE:
 	 * updates here should maybe be reflected in input validation
 	 * file: /pages/config/config.js
-	 * function: validateFunctionsPatern
+	 * function: validateFunctionsPattern
 	*/
 	function applyEvalVillain(evname) {
 		function getFunc(n) {

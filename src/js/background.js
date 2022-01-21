@@ -56,7 +56,7 @@ var defaultConfig = {
 			"enabled" : true,
 			"pattern" : "/^\\s*\\S{0,3}\\s*$/"
 		}, {
-			"name" : "Boolian",
+			"name" : "Boolean",
 			"enabled" : true,
 			"pattern" : "/^\s*(?:true|false)\s*$/gi"
 		}
@@ -82,31 +82,31 @@ var defaultConfig = {
 	"types" : [
 		{
 			"name": "string",
-			"patern": "string",
+			"pattern": "string",
 			"enabled": true
 		}, {
 			"name": "object",
-			"patern": "object",
+			"pattern": "object",
 			"enabled": false
 		}, {
 			"name": "function",
-			"patern": "function",
+			"pattern": "function",
 			"enabled": false
 		}, {
 			"name": "number",
-			"patern": "number",
+			"pattern": "number",
 			"enabled": false
 		}, {
 			"name": "boolean",
-			"patern": "boolean",
+			"pattern": "boolean",
 			"enabled": false
 		}, {
 			"name": "undefined",
-			"patern": "undefined",
+			"pattern": "undefined",
 			"enabled": false
 		}, {
 			"name": "symbol",
-			"patern": "symbol",
+			"pattern": "symbol",
 			"enabled": false
 		}
 	],
@@ -169,7 +169,7 @@ var defaultConfig = {
 			"highlight" : "color: yellow"
 		}, {
 			"name"		: "localStore",
-			"pretty"	: "localStorrage",
+			"pretty"	: "localStorage",
 			"use"		: true,
 			"open"		: false,
 			"default"	: "color: none",
@@ -208,9 +208,9 @@ function checkStorage() {
 			defaultConfig[iter].forEach(x=>defNames.add(x[name]));
 
 			if (result[iter].length !== curNames.size)
-				throw(`Current config has has duplicates in ${iter}`);
+				throw(`Current config has duplicates in ${iter}`);
 			if (defaultConfig[iter].length !== defNames.size)
-				throw(`Default config has has duplicates in ${iter}`);
+				throw(`Default config has duplicates in ${iter}`);
 
 			for (let elm of curNames) {
 				if (!defNames.delete(elm)) {
@@ -269,14 +269,14 @@ async function register() {
 		unreg = x;
 		browser.browserAction.setTitle({title : "EvalVillain: ON"});
 		browser.browserAction.setIcon({path : "/icons/on_48.png"});
-		debugLog("[EV_DEBUG] %cInjection Script regsitered", "color:#088;")
+		debugLog("[EV_DEBUG] %cInjection Script registered", "color:#088;")
 		return new Promise(res => res());
 	}
 
 	function fixStorage() {
 		if (trycnt++ > 2) {
 			trycnt = 0;
-			throw "Failed to get storrage for content script";
+			throw "Failed to get storage for content script";
 		}
 		return checkStorage()
 			.then(() => browser.storage.local.get(allStorage))
@@ -303,7 +303,7 @@ async function register() {
 		config.types = [];
 		for (let i of result.types) {
 			if (i.enabled) {
-				config.types.push(i.patern);
+				config.types.push(i.pattern);
 			}
 		}
 

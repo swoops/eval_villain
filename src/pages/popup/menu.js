@@ -92,7 +92,7 @@ function populateSubMenus() {
 	}
 
 	getSections()
-		.then(writeDOM, err => console.error("failed to get storrage: " + err));
+		.then(writeDOM, err => console.error("failed to get storage: " + err));
 }
 
 function updateSubmenu(target) {
@@ -126,7 +126,7 @@ function updateSubmenu(target) {
 		.then(updateBackground)
 		.then(amIOn)
 		.then(updateToggle)
-		.catch(err => console.error("failed to get storrage: " + err));
+		.catch(err => console.error("failed to get storage: " + err));
 }
 
 function listener(ev) {

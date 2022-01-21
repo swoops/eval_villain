@@ -207,7 +207,7 @@ var config =  {
 			"default"	: "color: none",
 			"highlight" : "color: colGreen"
 		}, "localStore" : {
-			"pretty"	: "localStorrage",
+			"pretty"	: "localStorage",
 			"use"		: true,
 			"open"		: true,
 			"default"	: "color: none",
