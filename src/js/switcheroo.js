@@ -1,7 +1,7 @@
 var rewriter = function(CONFIG) {
 	// set of strings to search for
-	this.searchSeen = new Set();
-	this.search = {
+	var searchSeen = new Set();
+	var search = {
 		needle : [],
 		winname : [],
 		fragment : [],
@@ -288,8 +288,8 @@ var rewriter = function(CONFIG) {
 
 		let ret = [];
 		// do all tests
-		for (let field in this.search) {
-			for (let test of this.search[field]) {
+		for (let field in search) {
+			for (let test of search[field]) {
 				for (let arg of argObj.args) {
 					if (testit(arg.str, test.search)) {
 						ret.push(()=>printer(test,arg));
@@ -460,7 +460,7 @@ var rewriter = function(CONFIG) {
 		}
 
 		function isNeedleBad(str) {
-			if (typeof(str) !== "string" || str.length == 0 || this.searchSeen.has(str)) {
+			if (typeof(str) !== "string" || str.length == 0 || searchSeen.has(str)) {
 				return true;
 			}
 			for (let needle of CONFIG.blacklist) {
@@ -481,7 +481,7 @@ var rewriter = function(CONFIG) {
 
 		function addIt(addTo, sObj) {
 			const limit = 200;
-			let size = this.searchSeen.size;
+			let size = searchSeen.size;
 			if (size == limit-1) {
 				let col = CONFIG.formats.interesting;
 				real.log(
@@ -491,8 +491,8 @@ var rewriter = function(CONFIG) {
 				return false;
 			}
 
-			this.searchSeen.add(sObj.search);
-			this.search[addTo].push(sObj);
+			searchSeen.add(sObj.search);
+			search[addTo].push(sObj);
 			return true;
 		}
 
@@ -582,7 +582,7 @@ var rewriter = function(CONFIG) {
 		// needles
 		if (formats.needle.use) {
 			for (let needle of CONFIG["needles"]) {
-				this.search.needle.push({
+				search.needle.push({
 					name:"needle",
 					search: needle,
 					format: CONFIG.formats["needle"],
