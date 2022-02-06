@@ -41,6 +41,10 @@ var defaultConfig = {
 			"enabled" : true,
 			"pattern" : "setInterval"
 		}, {
+			"name" : "URLSearchParams.get",
+			"enabled" : false,
+			"pattern" : "value(URLSearchParams.get)"
+		}, {
 			"name" : "decodeURI",
 			"enabled" : false,
 			"pattern" : "decodeURI"
