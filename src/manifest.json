@@ -4,13 +4,6 @@
 	"version" : "2.7",
 	"description" : "Hook interesting functions to see their input.",
 	"permissions": ["<all_urls>", "storage"],
-	"applications": {
-		"gecko": {
-			"id": "dennis@hurricanelabs.com",
-			"strict_min_version": "59.0"
-		}
-	},
-
 	"icons" : {
 		"48" : "icons/on_48.png",
 		"96" : "icons/on_96.png"
