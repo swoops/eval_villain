@@ -175,7 +175,7 @@ var rewriter = function(CONFIG) {
 	**/
 	function getInterest(argObj) {
 		function hlSlice(str, needle) {
-			let ret = [];
+			const ret = [];
 			if (typeof(needle) === "string") {
 				str.split(needle).forEach((x,index,arr)=> {
 					ret.push(x)
@@ -186,8 +186,9 @@ var rewriter = function(CONFIG) {
 			} else if (needle.global == false) {
 				// not global regex, so just split into two on first
 				needle.lastIndex = 0;
-				let m = needle.exec(str)[0];
-				str.split(m).forEach(x=>ret.push(x,m));
+				const m = needle.exec(str)[0];
+				const l = str.split(m);
+				ret.push(l[0], m, l[1]);
 			} else {
 				let holder = str;
 				let match = null;
