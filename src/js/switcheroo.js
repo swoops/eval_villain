@@ -103,9 +103,9 @@ var rewriter = function(CONFIG) {
 
 		if (!format.open) func = real.logGroupCollapsed;
 		if (num >1) {
-		 // add arg number in format
-		 titleGrp = "%c[EV] %c%s[%d]%c %s"
-		 values.splice(3,0,num);
+			// add arg number in format
+			titleGrp = "%c[EV] %c%s[%d]%c %s"
+			values.splice(3,0,num);
 		}
 		func(titleGrp, ...values)
 		return titleGrp;
@@ -421,7 +421,6 @@ var rewriter = function(CONFIG) {
 		var form = CONFIG.formats.winname;
 		let wn = window.name;
 		if (form.use) {
-			let addit = false;
 			addToSearch(true, "winname", {
 					name: "window.name",
 					search: wn,
@@ -652,6 +651,10 @@ var rewriter = function(CONFIG) {
 		addChangingSearch();
 	}
 
+	// prove we loaded
+	document.currentScript.setAttribute(CONFIG.checkId, true);
+	delete CONFIG["checkId"];
+
 	// grab real functions before hooking
 	var real = {
 		log : console.log,
@@ -678,9 +681,20 @@ var rewriter = function(CONFIG) {
 		CONFIG.formats.interesting.highlight,
 		CONFIG.formats.interesting.default,
 		CONFIG.formats.interesting.highlight,
-		document.domain,
+		document.location.origin,
 		CONFIG.formats.interesting.default
 	);
+}
+
+function makeid() {
+	let ret = '';
+	const alph = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+	let i = Math.random() * 16 + 8;
+	while (i < 32) {
+		ret += alph.charAt(Math.floor(Math.random() * alph.length));
+		i += 1;
+	}
+	return ret;
 }
 
 /*
@@ -689,14 +703,35 @@ var rewriter = function(CONFIG) {
  * Everything above is what will be injected
 */
 function inject_it(func, info) {
+	const checkId = `data-${makeid()}`; // document gets a head.div with id checkId on success
+
 	func = func.toString();
-	config = JSON.stringify(info);
-	inject = `(${func})(${config});`;
+	info["checkId"] = checkId;
+	inject = `(${func})(${JSON.stringify(info)});`;
+
 	var s = document.createElement('script');
 	s.type = "text/javascript";
-	s.onload = function() { this.remove(); }; // Keep dom clean
+	s.onload = () => this.remove(); // Keep dom clean
 	s.innerHTML = inject; // yeah, it's ironic
 	document.documentElement.appendChild(s);
+	let checkCount = 3;
+
+	function timeoutCheck() {
+		if (!(checkId in s.attributes)) {
+			if (checkCount-- > 0){
+				setTimeout(timeoutCheck, 100);
+			} else {
+				console.log("%c[ERROR]%c EV failed to load on %c%s%c",
+					config.formats.interesting.default,
+					config.formats.interesting.highlight,
+					config.formats.interesting.default,
+					document.location.origin,
+					config.formats.interesting.highlight
+				);
+			}
+		}
+	}
+	timeoutCheck();
 }
 
 inject_it(rewriter, config);
