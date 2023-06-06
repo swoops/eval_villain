@@ -3,6 +3,14 @@ var debug = false;
 
 // default config stuff
 var defaultConfig = {
+	"sinker" : {
+		"name" : "evSinker",
+		"enabled" : true,
+	},
+	// "evSource" : {
+	// 	"name" : "evSourceer",
+	// 	"enabled" : true,
+	// },
 	"functions" : [
 		{
 			"name" : "eval",
@@ -189,24 +197,22 @@ var defaultConfig = {
 	]
 }
 
+function getAllConf() {
+	return browser.storage.local.get(Object.keys(defaultConfig)).catch(console.error);
+}
+
 function debugLog() {
 	if (!debug) return;
 	console.log(...arguments);
 }
 
-function checkStorage() {
+async function checkStorage() {
 	function saveIfNot(result) {
 		function updateIt(what) {
 			let k = {};
 			k[what] = defaultConfig[what];
 			return browser.storage.local.set(k)
 				.then(() => console.log(`updated ${what}`));
-		}
-
-		// XXX compatability, fixing spelling error in config, remove in later
-		// version
-		if (result.hasOwnProperty("types") && result.types[0].hasOwnProperty("patern")) {
-			updateIt("types");
 		}
 
 		for (let iter in defaultConfig) {
@@ -220,7 +226,6 @@ function checkStorage() {
 				// if defaultConfig has changed since install, we update
 				let names = [];
 				result.formats.forEach(x => names.push(x.name));
-				let k = 0;
 				for (let def of defaultConfig.formats) {
 					if (names.includes(def)) {
 						defaultConfig.formats = res.formats[names.indexOf(def)];
@@ -230,11 +235,7 @@ function checkStorage() {
 			}
 		}
 	}
-
-	let allStorage = Object.keys(defaultConfig);
-
-	return browser.storage.local.get(allStorage)
-		.then(saveIfNot);
+	return getAllConf().then(saveIfNot);
 }
 
 // the following are default, they will be replaced by what is in the browser
@@ -261,12 +262,15 @@ async function register() {
 			throw "Failed to get storage for content script";
 		}
 		return checkStorage()
-			.then(() => browser.storage.local.get(allStorage))
+			.then(() => getAllConf())
 			.then(doReg);
 	}
 
 	function doReg(result) {
-		for (let i of allStorage) {
+		for (let i of Object.keys(defaultConfig)) {
+			if (["sinker"].includes(i)) {
+				continue;
+			}
 			if (result[i] === undefined || !Array.isArray(result[i])) {
 				return fixStorage();
 			}
@@ -321,6 +325,11 @@ async function register() {
 				}
 			}
 		}
+
+		if (result.sinker.enabled) {
+			config.sinker = result.sinker.name;
+		}
+
 		// no targets enabled means do all
 		if (match.length === 0) {
 			match.push("<all_urls>");
@@ -339,8 +348,7 @@ async function register() {
 		});
 	}
 
-	let allStorage = Object.keys(defaultConfig);
-	return browser.storage.local.get(allStorage)
+	return getAllConf()
 		.then(doReg)
 		.then(worked);
 }
@@ -361,7 +369,7 @@ function removeScript(icon=true) {
 function toggleEV() {
 	if (unreg) {
 		removeScript();
-		return new Promise(function(g,b) {g(false)});
+		return new Promise(function(g) {g(false)});
 	} else {
 		return register();
 	}
@@ -373,8 +381,8 @@ browser.commands.onCommand.addListener(function(command) {
 
 function handleMessage(request, sender, sendResponse) {
 	if (request === "on?") {
-		return new Promise(function(good, bad) {
-			good(unreg ? true : false);
+		return new Promise(function(g) {
+			g(unreg ? true : false);
 		});
 	} else if (request === "toggle") {
 		return toggleEV();
@@ -382,7 +390,7 @@ function handleMessage(request, sender, sendResponse) {
 		if (unreg) {
 			return register();
 		} else {
-			return new Promise(function(g,b) {g(false)});
+			return new Promise(function(g) {g(false)});
 		}
 	} else {
 		console.err("unknown msg: " + request);

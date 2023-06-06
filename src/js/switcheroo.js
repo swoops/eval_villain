@@ -308,7 +308,9 @@ var rewriter = function(CONFIG) {
 	**/
 	function EvalVillainHook(name, args) {
 		let argObj = getArgs(args);
-		if (argObj.args.length == 0) return;
+		if (argObj.args.length == 0) {
+			return true;
+		}
 
 		// does this call have an interesting result?
 		let format = null;
@@ -317,12 +319,12 @@ var rewriter = function(CONFIG) {
 		if (printers.length > 0) {
 			format = CONFIG.formats.interesting;
 			if (!format.use) {
-				return;
+				return false;
 			}
 		} else {
 			format = CONFIG.formats.title;
 			if (!format.use) {
-				return;
+				return false;
 			}
 		}
 
@@ -347,7 +349,7 @@ var rewriter = function(CONFIG) {
 			real.logGroupEnd(stackTitle);
 		}
 		real.logGroupEnd(titleGrp);
-		return ;
+		return false;
 	} // end EvalVillainHook
 
 	class evProxy {
@@ -671,6 +673,13 @@ var rewriter = function(CONFIG) {
 	myatob = atob;
 	for (let name of CONFIG["functions"]) {
 		applyEvalVillain(name);
+	}
+	if (CONFIG.sinker) {
+		window[CONFIG.sinker] = (x, y) => {
+			EvalVillainHook(x, y);
+			return false;
+		}
+		delete CONFIG.sinker;
 	}
 
 	strToRegex(CONFIG.needles);
