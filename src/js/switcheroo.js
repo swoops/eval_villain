@@ -1,7 +1,8 @@
 var rewriter = function(CONFIG) {
 	// set of strings to search for
-	var searchSeen = new Set();
-	var search = {
+	const searchSeen = new Set();
+	const search = {
+		user : [],
 		needle : [],
 		winname : [],
 		fragment : [],
@@ -423,7 +424,7 @@ var rewriter = function(CONFIG) {
 		var form = CONFIG.formats.winname;
 		let wn = window.name;
 		if (form.use) {
-			addToSearch(true, "winname", {
+			addToSearch("winname", {
 					name: "window.name",
 					search: wn,
 					format: form,
@@ -432,7 +433,7 @@ var rewriter = function(CONFIG) {
 
 		form = CONFIG.formats.fragment;
 		if (form.use) {
-			addToSearch(true, "fragment", {
+			addToSearch("fragment", {
 				name: "fragment",
 				search: location.hash.substring(1),
 				format: form,
@@ -440,15 +441,7 @@ var rewriter = function(CONFIG) {
 		}
 	}
 
-	function addToSearch(decode, addTo, sObj) {
-		if (!decode) {
-			sObj.decode = "";
-			if (!isNeedleBad(sObj.search)) {
-				addIt(addTo, sObj);
-			}
-			return;
-		}
-
+	function addToSearch(addTo, sObj) {
 		for (let tup of decodeAll(sObj.search)) {
 			if (!addIt(addTo, {
 				name: sObj.name,
@@ -480,21 +473,26 @@ var rewriter = function(CONFIG) {
 			return false;
 		}
 
-
 		function addIt(addTo, sObj) {
-			const limit = 200;
+			const limit = 300;
 			let size = searchSeen.size;
-			if (size == limit-1) {
-				let col = CONFIG.formats.interesting;
-				real.log(
-				  `%c[EV WARNING]%c size limit (${limit}) reached for ${addTo} parameters in ${location.href}`,
-					col.highlight, col.default);
-			} else if (size >= limit) {
-				return false;
+			const seenlist = search[addTo];
+			if (size >= limit) {
+				if (!["needle", "fragment", "query"].includes(addTo) && seenlist.length > 0) {
+					// we can remove last item and cycle
+					const last = seenlist.pop();
+					searchSeen.delete(last.search);
+				} else {
+					const col = CONFIG.formats.interesting;
+					real.log(
+					  `%c[EV WARNING]%c size limit (${limit}) reached for ${addTo} parameters in ${location.href}`,
+						col.highlight, col.default);
+					return false;
+				}
 			}
 
 			searchSeen.add(sObj.search);
-			search[addTo].push(sObj);
+			seenlist.push(sObj);
 			return true;
 		}
 
@@ -603,10 +601,10 @@ var rewriter = function(CONFIG) {
 				let match = false;
 				while (match = re.exec(query)) {
 					if (loop++ > 200) {
-						real.warn("[EV] More then 200 parameters?");
+						real.warn("[EV] More then 200 URL parameters?");
 						break;
 					}
-					addToSearch(true, "query", {
+					addToSearch("query", {
 						name: "query",
 						param: match[1],
 						search: match[2],
@@ -621,14 +619,14 @@ var rewriter = function(CONFIG) {
 			for (let i of document.cookie.split(/;\s*/)) {
 				let s = i.split("=");
 				if (s.length >= 2) {
-					addToSearch(true, "cookies", {
+					addToSearch("cookies", {
 						name: "cookie",
 						param: s[0],
 						search: s[1],
 						format: formats.cookie,
 					});
 				} else {
-					addToSearch(true, "cookies", {
+					addToSearch("cookies", {
 						name: `cookie`,
 						search: s[0],
 						format: formats.cookie,
@@ -641,7 +639,7 @@ var rewriter = function(CONFIG) {
 			let l = localStorage.length;
 			for (let i=0; i<l; i++) {
 				let name = localStorage.key(i);
-				addToSearch(true, "localStorage", {
+				addToSearch("localStorage", {
 					name: `localStorage`,
 					param: name,
 					search: localStorage.getItem(name),
@@ -674,12 +672,25 @@ var rewriter = function(CONFIG) {
 	for (let name of CONFIG["functions"]) {
 		applyEvalVillain(name);
 	}
+
 	if (CONFIG.sinker) {
-		window[CONFIG.sinker] = (x, y) => {
-			EvalVillainHook(x, y);
+		window[CONFIG.sinker] = EvalVillainHook;
+		delete CONFIG.sinker;
+	}
+	if (CONFIG.sourcer) {
+		const fmt = CONFIG.formats.winname;
+		window[CONFIG.sourcer] = (n, v, debug=false) => {
+			if (debug) {
+				real.log(`[debug] EVSinker '${n}' added: ${v}`);
+			}
+			addToSearch("user", {
+					name: n,
+					search: v,
+					format: fmt,
+				});
 			return false;
 		}
-		delete CONFIG.sinker;
+		delete CONFIG.sourcer;
 	}
 
 	strToRegex(CONFIG.needles);
@@ -734,7 +745,7 @@ function inject_it(func, info) {
 					config.formats.interesting.default,
 					config.formats.interesting.highlight,
 					config.formats.interesting.default,
-					document.location.origin,
+					document.location.href,
 					config.formats.interesting.highlight
 				);
 			}

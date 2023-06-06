@@ -7,10 +7,10 @@ var defaultConfig = {
 		"name" : "evSinker",
 		"enabled" : true,
 	},
-	// "evSource" : {
-	// 	"name" : "evSourceer",
-	// 	"enabled" : true,
-	// },
+	"sourcer" : {
+		"name" : "evSourcer",
+		"enabled" : true,
+	},
 	"functions" : [
 		{
 			"name" : "eval",
@@ -268,7 +268,7 @@ async function register() {
 
 	function doReg(result) {
 		for (let i of Object.keys(defaultConfig)) {
-			if (["sinker"].includes(i)) {
+			if (["sinker", "sourcer"].includes(i)) {
 				continue;
 			}
 			if (result[i] === undefined || !Array.isArray(result[i])) {
@@ -326,8 +326,10 @@ async function register() {
 			}
 		}
 
-		if (result.sinker.enabled) {
-			config.sinker = result.sinker.name;
+		for (let i of ["sinker", "sourcer"]) {
+			if (result[i].enabled) {
+				config[i] = result[i].name;
+			}
 		}
 
 		// no targets enabled means do all
