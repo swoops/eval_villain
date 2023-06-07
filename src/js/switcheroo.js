@@ -11,25 +11,6 @@ var rewriter = function(CONFIG) {
 		localStorage : [],
 	};
 
-	function invalidArgType(arg, num, argType) {
-		let errtitle = "%c[EV] Error: %c%s%c Unexpected argument type for [%d], got %c%s"
-		let hl	 = CONFIG.formats.title.highlight;
-		let dflt = CONFIG.formats.title.default;
-		real.logGroupCollapsed(
-			errtitle, dflt,
-			hl, name, dflt,
-			num,
-			hl, argType
-		);
-		real.logGroup("args:");
-		real.dir(arg);
-		real.logGroupEnd("args array:");
-		real.logGroupCollapsed("trace:");
-		real.trace();
-		real.logGroupEnd("trace:");
-		real.logGroupEnd(errtitle);
-	}
-
 	/**
 	* Helper function to turn parsable arguments into nice strings
 	* @arg {Object|string} arg Argument to be turned into a string
@@ -56,8 +37,7 @@ var rewriter = function(CONFIG) {
 
 		// sanity
 		if (!knownTypes.includes(t)) {
-			invalidArgType(args[i], +i, t);
-			return t;
+			throw `Unexpect argument type ${t} for ${arg}`;
 		}
 
 		// configured to not check
@@ -75,8 +55,6 @@ var rewriter = function(CONFIG) {
 	*/
 	function getArgs(args) {
 		let ret = [];
-		let hasInterest = 0;
-
 		for (let i in args) {
 			if (!args.hasOwnProperty(i)) continue;
 			let t = typeCheck(args[i]);
@@ -102,7 +80,9 @@ var rewriter = function(CONFIG) {
 			format.default, format.highlight, name, format.default, location.href
 		];
 
-		if (!format.open) func = real.logGroupCollapsed;
+		if (!format.open) {
+			func = real.logGroupCollapsed;
+		}
 		if (num >1) {
 			// add arg number in format
 			titleGrp = "%c[EV] %c%s[%d]%c %s"
@@ -144,11 +124,11 @@ var rewriter = function(CONFIG) {
 		}
 	}
 
-	function zebraBuild(arr, fmt1, fmt2) {
+	function zebraBuild(arr, fmts) { // fmt2 is used via arguments
 		let fmt = "%c%s".repeat(arr.length);
 		let args = [];
 		for (var i=0; i<arr.length; i++) {
-			args.push(arguments[1+(i%2)]);
+			args.push(fmts[i % 2]);
 			args.push(arr[i]);
 		}
 		args.unshift(fmt);
@@ -156,11 +136,11 @@ var rewriter = function(CONFIG) {
 	}
 
 	function zebraLog(arr, fmt) {
-		real.log(...zebraBuild(arr, fmt.default, fmt.highlight));
+		real.log(...zebraBuild(arr, [fmt.default, fmt.highlight]));
 	}
 
 	function zebraGroup(arr, fmt) {
-		let a = zebraBuild(arr, fmt.default, fmt.highlight);
+		let a = zebraBuild(arr, [fmt.default, fmt.highlight]);
 		if (fmt.open) {
 			real.logGroup(...a);
 		} else {
@@ -294,7 +274,7 @@ var rewriter = function(CONFIG) {
 			for (let test of search[field]) {
 				for (let arg of argObj.args) {
 					if (testit(arg.str, test.search)) {
-						ret.push(()=>printer(test,arg));
+						ret.push(()=>printer(test, arg));
 					}
 				}
 			}
@@ -686,7 +666,6 @@ var rewriter = function(CONFIG) {
 	if (CONFIG.sourcer) {
 		const fmt = CONFIG.formats.userSource;
 		if (fmt.use) {
-			console.dir(fmt);
 			window[CONFIG.sourcer] = (n, v, debug=false) => {
 				if (debug) {
 					real.log(`[debug] EVSinker '${n}' added: ${v}`);
