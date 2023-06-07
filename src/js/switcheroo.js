@@ -673,10 +673,16 @@ var rewriter = function(CONFIG) {
 		applyEvalVillain(name);
 	}
 
+	// turns console.log into console.info
+	if (CONFIG.formats.logReroute.use) {
+		console.log = console.info;
+	}
+
 	if (CONFIG.sinker) {
 		window[CONFIG.sinker] = EvalVillainHook;
 		delete CONFIG.sinker;
 	}
+
 	if (CONFIG.sourcer) {
 		const fmt = CONFIG.formats.userSource;
 		if (fmt.use) {

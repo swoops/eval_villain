@@ -37,15 +37,20 @@ function unsavedTable(tblName) {
 	}
 
 	function compareFormatData(saved, tblData) {
-		// size does not change, so one to one comparison
-		for (let i in saved) {
-			let name = tblData[i].row.querySelector("input:disabled").name;
-
-			if (name != saved[i].name) {
+		for (let j = 0, i = 0; i < saved.length; i++) {
+			const save = saved[i];
+			if (saved[i].open === null) {
+				// Can't be updated, not in table
+				continue;
+			}
+			const tbl = tblData[j++];
+			let name = tbl.row.querySelector("input:disabled").name;
+			if (name != save.name) {
 				throw "Color table does not align with formats";
 			}
+
 			for (let h of formatsHeader) {
-				if (tblData[i][h] != saved[i][h]) {
+				if (tbl[h] != save[h]) {
 					markSaved(false);
 					return;
 				}
@@ -170,23 +175,30 @@ function defAddRow(tblName, ex, focus=false) {
 	}
 }
 
-function colorSave() {
-	function saveIt(res) {
-		let saved = res.formats;
-		let tblData = getTableData("formats");
+async function colorSave() {
+	const res = await browser.storage.local.get("formats");
+	const saved = res.formats;
+	const tblData = getTableData("formats");
 
-		for (let i in saved) {
-			for (let h of formatsHeader) {
-				saved[i][h] = tblData[i][h];
-			}
+	for (let j = 0, i = 0; i < saved.length; i++) {
+		const save = saved[i];
+		if (saved[i].open === null) {
+			// Can't be updated, not in table
+			continue;
 		}
-		browser.storage.local.set(res)
+		const tbl = tblData[j++];
+		let name = tbl.row.querySelector("input:disabled").name;
+		if (name != save.name) {
+			throw "Color table does not align with formats";
+		}
+
+		for (let h of formatsHeader) {
+			save[h] = tbl[h];
+		}
+	}
+	browser.storage.local.set(res)
 		.then(updateBackground)
 		.then(unsavedTable("formats"));
-	}
-
-	browser.storage.local.get("formats")
-		.then(saveIt);
 }
 
 function getDefElements(form) {
@@ -295,7 +307,9 @@ function populateColors() {
 
 		let tbl = document.getElementById("formats-form");
 		for (let i of formats) {
-			tbl.appendChild(createRow(i));
+			if (i.open !== null) {
+				tbl.appendChild(createRow(i));
+			}
 		}
 		return true;
 	}

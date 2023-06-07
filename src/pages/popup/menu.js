@@ -11,6 +11,11 @@ function updateToggle(on) {
 	d.innerText = "Villain is " + (on ? "ON" : "OFF");
 }
 
+async function update_if_on() {
+	const on = await amIOn();
+	update_if_on(on);
+}
+
 function createCheckBox(name, checked, subMenu) {
 	var d = document;
 	var li = d.createElement("li");
@@ -68,35 +73,33 @@ function getSections() {
 	});
 }
 
-function populateSubMenus() {
-	function writeDOM(res) {
-		for (let sub of configList) {
-			if (!res[sub]) {
-				console.error("Could not get: " + sub);
-			}
+async function populateSubMenus() {
+	const res = await getSections();
+	for (let sub of configList) {
+		if (!res[sub]) {
+			console.error("Could not get: " + sub);
+		}
 
-			var where = document.getElementById(`${sub}-sub`);
-			for (let itr of res[sub]) {
-				let inpt = createCheckBox(itr.name, itr.enabled, sub);
+		var where = document.getElementById(`${sub}-sub`);
+		for (let itr of res[sub]) {
+			if (typeof(itr.enabled) === 'boolean') {
+				const inpt = createCheckBox(itr.name, itr.enabled, sub);
 				where.appendChild(inpt);
 			}
+		}
 
-			if (res[sub].length == 0) {
-				let em = document.createElement("em");
-				em.innerText = "Nothing Configured";
-				em.className = "configure";
-				em.onclick = () => goToConfig();
-				where.appendChild(em);
-			}
+		if (res[sub].length == 0) {
+			const em = document.createElement("em");
+			em.innerText = "Nothing Configured";
+			em.className = "configure";
+			em.onclick = () => goToConfig();
+			where.appendChild(em);
 		}
 	}
-
-	getSections()
-		.then(writeDOM, err => console.error("failed to get storage: " + err));
 }
 
-function updateSubmenu(target) {
-	var name = target.name;
+async function updateSubmenu(target) {
+	let name = target.name;
 	function update(res) {
 		var chg = "enabled";
 		var ident = "name";
@@ -108,9 +111,12 @@ function updateSubmenu(target) {
 			chg = "use";
 			ident = "pretty";
 		}
+
 		for (let k of res[name]) {
 			if (k[ident] === target.id) {
-				k[chg] = target.checked;
+				if (typeof(k[chg]) === 'boolean') {
+					k[chg] = target.checked;
+				}
 				break;
 			}
 		}
@@ -124,8 +130,7 @@ function updateSubmenu(target) {
 	browser.storage.local.get(name)
 		.then(update)
 		.then(updateBackground)
-		.then(amIOn)
-		.then(updateToggle)
+		.then(update_if_on)
 		.catch(err => console.error("failed to get storage: " + err));
 }
 
@@ -137,8 +142,7 @@ function listener(ev) {
 	if (node === "INPUT") {
 		if (id === "toggle") {															// on off button
 			toggleBackground()
-				.then(amIOn)
-				.then(updateToggle)
+				.then(update_if_on)
 				.catch(err => {
 					console.error(`toggle error: ${err}`);
 					updateToggle(false);
@@ -169,7 +173,6 @@ function goToConfig() {
 		return;
 }
 
-amIOn().then(updateToggle);
+update_if_on();
 document.addEventListener("click", listener);
 populateSubMenus();
-// vim: set sw=2:ts=2:sts=2:ft=javascript:et

@@ -203,6 +203,13 @@ var defaultConfig = {
 			"open"		: false,
 			"default"	: "color: none",
 			"highlight" : "color: #088"
+		}, {
+			"name"		: "logReroute",
+			"pretty"	: "Log Reroute",
+			"use"		: true,
+			"open"		: null,
+			"default"	: "N/A",
+			"highlight" : "N/A"
 		}
 	]
 }
