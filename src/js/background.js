@@ -3,14 +3,6 @@ var debug = false;
 
 // default config stuff
 var defaultConfig = {
-	"sinker" : {
-		"name" : "evSinker",
-		"enabled" : true,
-	},
-	"sourcer" : {
-		"name" : "evSourcer",
-		"enabled" : true,
-	},
 	"functions" : [
 		{
 			"name" : "eval",
@@ -122,6 +114,17 @@ var defaultConfig = {
 			"enabled": false
 		}
 	],
+	"globals" : [
+		{
+			"name" : "sinker",
+			"enabled" : false,
+			"pattern" : "evSinker"
+		}, {
+			"name" : "sourcer",
+			"enabled" : false,
+			"pattern" : "evSourcer"
+		}
+	],
 	"formats": [
 		{
 			"name"		: "title",
@@ -186,6 +189,13 @@ var defaultConfig = {
 			"open"		: false,
 			"default"	: "color: none",
 			"highlight" : "color: yellow"
+		}, {
+			"name"		: "userSource",
+			"pretty"	: "User Sources",
+			"use"		: true,
+			"open"		: false,
+			"default"	: "color: none",
+			"highlight" : "color:#147599"
 		}, {
 			"name"		: "stack",
 			"pretty"	: "Stack Display",
@@ -268,15 +278,11 @@ async function register() {
 
 	function doReg(result) {
 		for (let i of Object.keys(defaultConfig)) {
-			if (["sinker", "sourcer"].includes(i)) {
-				continue;
-			}
 			if (result[i] === undefined || !Array.isArray(result[i])) {
 				return fixStorage();
 			}
 		}
 
-		var match = [];
 		let config = {};
 		config.formats = {};
 		for (let i of result.formats) {
@@ -285,16 +291,15 @@ async function register() {
 			delete tmp.name;
 		}
 
-		// types list of enabled types
-		config.types = [];
-		for (let i of result.types) {
+		// globals
+		for (let i of result.globals) {
 			if (i.enabled) {
-				config.types.push(i.pattern);
+				config[i.name] = i.pattern;
 			}
 		}
 
-		for (let what of ["needles", "blacklist", "functions"]) {
-			let tmp = [];
+		for (let what of ["needles", "blacklist", "functions", "types"]) {
+			const tmp = [];
 			for (let i of result[what]) {
 				if (i.enabled) {
 					tmp.push(i.pattern);
@@ -310,6 +315,7 @@ async function register() {
 		}
 
 		// target stuff {
+		var match = [];
 		let targRegex = /^(https?|wss?|file|ftp|\*):\/\/(\*|\*\.[^|)}>#]+|[^|)}>#]+)\/.*$/;
 		for (let i of result.targets) {
 			if (i.enabled) {
@@ -323,12 +329,6 @@ async function register() {
 					res(false);
 					return;
 				}
-			}
-		}
-
-		for (let i of ["sinker", "sourcer"]) {
-			if (result[i].enabled) {
-				config[i] = result[i].name;
 			}
 		}
 

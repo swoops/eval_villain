@@ -678,7 +678,7 @@ var rewriter = function(CONFIG) {
 		delete CONFIG.sinker;
 	}
 	if (CONFIG.sourcer) {
-		const fmt = CONFIG.formats.winname;
+		const fmt = CONFIG.formats.userSource;
 		window[CONFIG.sourcer] = (n, v, debug=false) => {
 			if (debug) {
 				real.log(`[debug] EVSinker '${n}' added: ${v}`);
