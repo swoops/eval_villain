@@ -70,7 +70,7 @@ var defaultConfig = {
 		}, {
 			"name" : "Boolean",
 			"enabled" : true,
-			"pattern" : "/^\s*(?:true|false)\s*$/gi"
+			"pattern" : "/^\\s*(?:true|false)\\s*$/gi"
 		}
 	],
 	"needles" : [
