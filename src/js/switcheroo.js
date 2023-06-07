@@ -679,18 +679,21 @@ var rewriter = function(CONFIG) {
 	}
 	if (CONFIG.sourcer) {
 		const fmt = CONFIG.formats.userSource;
-		window[CONFIG.sourcer] = (n, v, debug=false) => {
-			if (debug) {
-				real.log(`[debug] EVSinker '${n}' added: ${v}`);
+		if (fmt.use) {
+			console.dir(fmt);
+			window[CONFIG.sourcer] = (n, v, debug=false) => {
+				if (debug) {
+					real.log(`[debug] EVSinker '${n}' added: ${v}`);
+				}
+				addToSearch("user", {
+						name: n,
+						search: v,
+						format: fmt,
+					});
+				return false;
 			}
-			addToSearch("user", {
-					name: n,
-					search: v,
-					format: fmt,
-				});
-			return false;
+			delete CONFIG.sourcer;
 		}
-		delete CONFIG.sourcer;
 	}
 
 	strToRegex(CONFIG.needles);
