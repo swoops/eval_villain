@@ -49,28 +49,26 @@ function createCheckBox(name, checked, subMenu) {
 	return li;
 }
 
-function getSections() {
-	let ret =  browser.storage.local.get(["targets", "needles", "blacklist", "functions", "types", "formats"]);
-	return ret.then(all => {
-		let autoOpen = [];
-		let onOff = [];
-		for (let k of all.formats) {
-			autoOpen.push({
-				name: k.pretty,
-				pattern: k.name,
-				enabled: k.open,
-			});
-			onOff.push({
-				name: k.pretty,
-				pattern: k.name,
-				enabled: k.use,
-			});
-		}
-		all.autoOpen = autoOpen;
-		all.onOff = onOff;
-		delete all.formats;
-		return all;
-	});
+async function getSections() {
+	const all = await browser.storage.local.get(["targets", "needles", "blacklist", "functions", "types", "formats"]);
+	const autoOpen = [];
+	const onOff = [];
+	for (let k of all.formats) {
+		autoOpen.push({
+			name: k.pretty,
+			pattern: k.name,
+			enabled: k.open,
+		});
+		onOff.push({
+			name: k.pretty,
+			pattern: k.name,
+			enabled: k.use,
+		});
+	}
+	all.autoOpen = autoOpen;
+	all.onOff = onOff;
+	delete all.formats;
+	return all;
 }
 
 async function populateSubMenus() {
