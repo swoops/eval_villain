@@ -13,7 +13,7 @@ function updateToggle(on) {
 
 async function update_if_on() {
 	const on = await amIOn();
-	update_if_on(on);
+	updateToggle(on);
 }
 
 function createCheckBox(name, checked, subMenu) {
