@@ -454,13 +454,13 @@ var rewriter = function(CONFIG) {
 		}
 
 		function addIt(addTo, sObj) {
-			const limit = 300;
+			const limit = 500;
 			let size = searchSeen.size;
 			const seenlist = search[addTo];
 			if (size >= limit) {
 				if (!["needle", "fragment", "query"].includes(addTo) && seenlist.length > 0) {
 					// we can remove last item and cycle
-					const last = seenlist.pop();
+					const last = seenlist.shift();
 					searchSeen.delete(last.search);
 				} else {
 					const col = CONFIG.formats.interesting;
@@ -638,6 +638,7 @@ var rewriter = function(CONFIG) {
 	// grab real functions before hooking
 	var real = {
 		log : console.log,
+		debug : console.debug,
 		warn : console.warn,
 		dir : console.dir,
 		jsonParse : JSON.parse,
@@ -645,6 +646,7 @@ var rewriter = function(CONFIG) {
 		logGroupEnd : console.groupEnd,
 		logGroupCollapsed : console.groupCollapsed,
 		trace : console.trace,
+		JSON : JSON,
 		decodeURIComponent : decodeURIComponent,
 		decodeURI : decodeURI,
 	}
@@ -667,8 +669,11 @@ var rewriter = function(CONFIG) {
 		const fmt = CONFIG.formats.userSource;
 		if (fmt.use) {
 			window[CONFIG.sourcer] = (n, v, debug=false) => {
+				if (typeof(v) !== 'string') {
+					v = real.JSON.stringify(v);
+				}
 				if (debug) {
-					real.log(`[debug] EVSinker '${n}' added: ${v}`);
+					real.debug(`[EV] ${document.location.origin} EVSinker '${n}' added: ${v}`);
 				}
 				addToSearch("user", {
 						name: n,
