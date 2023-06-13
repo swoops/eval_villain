@@ -727,24 +727,17 @@ function inject_it(func, info) {
 	s.onload = () => this.remove(); // Keep dom clean
 	s.innerHTML = inject; // yeah, it's ironic
 	document.documentElement.appendChild(s);
-	let checkCount = 3;
 
-	function timeoutCheck() {
-		if (!(checkId in s.attributes)) {
-			if (checkCount-- > 0){
-				setTimeout(timeoutCheck, 100);
-			} else {
-				console.log("%c[ERROR]%c EV failed to load on %c%s%c",
-					config.formats.interesting.default,
-					config.formats.interesting.highlight,
-					config.formats.interesting.default,
-					document.location.href,
-					config.formats.interesting.highlight
-				);
-			}
-		}
+	if (!(checkId in s.attributes)) {
+		console.log("%c[ERROR]%c EV failed to load on %c%s%c",
+			config.formats.interesting.default,
+			config.formats.interesting.highlight,
+			config.formats.interesting.default,
+			document.location.href,
+			config.formats.interesting.highlight
+		);
+		s.remove();
 	}
-	timeoutCheck();
 }
 
 inject_it(rewriter, config);
