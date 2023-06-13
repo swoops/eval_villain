@@ -2,12 +2,12 @@ var rewriter = function(CONFIG) {
 	// set of strings to search for
 	const searchSeen = new Set();
 	const search = {
-		user : [],
+		userSource : [],
 		needle : [],
 		winname : [],
 		fragment : [],
 		query : [],
-		cookies : [],
+		cookie : [],
 		localStorage : [],
 	};
 
@@ -203,7 +203,7 @@ var rewriter = function(CONFIG) {
 			return false;
 		}
 
-		function printer(s, arg) {
+		function printer(s, arg, fmt) {
 			let word = s.search;
 			let dots = "";
 			if (word.length > 80) {
@@ -223,7 +223,7 @@ var rewriter = function(CONFIG) {
 				title.push(" [Decoded]");
 			}
 
-			let end = zebraGroup(title, s.format);
+			let end = zebraGroup(title, fmt);
 			if (dots) {
 				let d = "Entire needle:"
 				real.logGroupCollapsed(d);
@@ -260,7 +260,7 @@ var rewriter = function(CONFIG) {
 				real.logGroupEnd(d);
 			}
 			let ar = hlSlice(arg.str, s.search);
-			zebraLog(ar, s.format);
+			zebraLog(ar, fmt);
 			real.logGroupEnd(end);
 		}
 
@@ -272,9 +272,10 @@ var rewriter = function(CONFIG) {
 		// do all tests
 		for (let field in search) {
 			for (let test of search[field]) {
+				const fmt = CONFIG.formats[field];
 				for (let arg of argObj.args) {
 					if (testit(arg.str, test.search)) {
-						ret.push(()=>printer(test, arg));
+						ret.push(()=>printer(test, arg, fmt));
 					}
 				}
 			}
@@ -407,21 +408,21 @@ var rewriter = function(CONFIG) {
 			addToSearch("winname", {
 					name: "window.name",
 					search: wn,
-					format: form,
 				});
 		}
 
 		form = CONFIG.formats.fragment;
 		if (form.use) {
 			addToSearch("fragment", {
-				name: "fragment",
 				search: location.hash.substring(1),
-				format: form,
 			});
 		}
 	}
 
 	function addToSearch(addTo, sObj) {
+		if (!sObj.name) {
+			sObj.name = addTo;
+		}
 		for (let tup of decodeAll(sObj.search)) {
 			if (!addIt(addTo, {
 				name: sObj.name,
@@ -585,10 +586,8 @@ var rewriter = function(CONFIG) {
 						break;
 					}
 					addToSearch("query", {
-						name: "query",
 						param: match[1],
 						search: match[2],
-						format: formats.query,
 					});
 				} // while regex loop
 			} // if query.length
@@ -599,17 +598,14 @@ var rewriter = function(CONFIG) {
 			for (let i of document.cookie.split(/;\s*/)) {
 				let s = i.split("=");
 				if (s.length >= 2) {
-					addToSearch("cookies", {
-						name: "cookie",
+					addToSearch("cookie", {
 						param: s[0],
 						search: s[1],
-						format: formats.cookie,
 					});
 				} else {
-					addToSearch("cookies", {
+					addToSearch("cookie", {
 						name: `cookie`,
 						search: s[0],
-						format: formats.cookie,
 					});
 				}
 			}
@@ -620,10 +616,8 @@ var rewriter = function(CONFIG) {
 			for (let i=0; i<l; i++) {
 				let name = localStorage.key(i);
 				addToSearch("localStorage", {
-					name: `localStorage`,
 					param: name,
 					search: localStorage.getItem(name),
-					format: formats.localStore,
 				});
 			}
 		}
@@ -668,17 +662,14 @@ var rewriter = function(CONFIG) {
 	if (CONFIG.sourcer) {
 		const fmt = CONFIG.formats.userSource;
 		if (fmt.use) {
-			window[CONFIG.sourcer] = (n, v, debug=false) => {
-				if (typeof(v) !== 'string') {
-					v = real.JSON.stringify(v);
-				}
+			const srcer = CONFIG.sourcer;
+			window[srcer] = (n, v, debug=false) => {
 				if (debug) {
 					real.debug(`[EV] ${document.location.origin} EVSinker '${n}' added: ${v}`);
 				}
-				addToSearch("user", {
-						name: n,
+				addToSearch("userSource", {
+						name: `${srcer}[${n}]`,
 						search: v,
-						format: fmt,
 					});
 				return false;
 			}
