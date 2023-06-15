@@ -19,7 +19,7 @@ var rewriter = function(CONFIG) {
 		if (typeof(arg) === "string")
 			return arg
 		if (typeof(arg) === "object")
-			return JSON.stringify(arg)
+			return real.JSON.stringify(arg)
 		return arg.toString();
 	}
 
@@ -512,7 +512,7 @@ var rewriter = function(CONFIG) {
 
 			// JSON
 			try {
-				let dec = real.jsonParse(s);
+				let dec = real.JSON.parse(s);
 				if (dec) {
 					let fwd = `\t{\n\t\tlet _ = ${s};\n\t\t_`;
 					yield* decodeAny(dec, `\t\tx = JSON.stringify(_);\n\t}\n${decoded}`, fwd);
@@ -635,7 +635,6 @@ var rewriter = function(CONFIG) {
 		debug : console.debug,
 		warn : console.warn,
 		dir : console.dir,
-		jsonParse : JSON.parse,
 		logGroup : console.group,
 		logGroupEnd : console.groupEnd,
 		logGroupCollapsed : console.groupCollapsed,
