@@ -423,7 +423,7 @@ var rewriter = function(CONFIG) {
 		if (!sObj.name) {
 			sObj.name = addTo;
 		}
-		for (let tup of decodeAll(sObj.search)) {
+		for (let tup of decodeFirst(sObj.search)) {
 			if (!addIt(addTo, {
 				name: sObj.name,
 				param: sObj.param,
@@ -477,13 +477,23 @@ var rewriter = function(CONFIG) {
 			return true;
 		}
 
+		function* decodeFirst(s) {
+			// TODO: Sets...
+			if (typeof(s) === 'string') {
+				yield *decodeAll(s);
+			} else if (typeof(s) === "object") {
+				const fwd = `\t{\n\t\tlet _ = ${JSON.stringify(s)};\n\t\t_`;
+				yield* decodeAny(s, `\t\tx = _\n\t}\n`, fwd);
+			}
+		}
+
 		function* decodeAny(any, decoded, fwd) {
 			if (Array.isArray(any)) {
 				yield* decodeArray(any, decoded, fwd);
 			} else if (typeof(any) == "object"){
 				yield* decodeObject(any, decoded, fwd);
 			} else {
-				yield* decodeAll(any, fwd + "= x;\n"+ decoded);
+				yield* decodeAll(any, fwd + "= x;\n" + decoded);
 			}
 		}
 
@@ -512,9 +522,9 @@ var rewriter = function(CONFIG) {
 
 			// JSON
 			try {
-				let dec = real.JSON.parse(s);
+				const dec = real.JSON.parse(s);
 				if (dec) {
-					let fwd = `\t{\n\t\tlet _ = ${s};\n\t\t_`;
+					const fwd = `\t{\n\t\tlet _ = ${s};\n\t\t_`;
 					yield* decodeAny(dec, `\t\tx = JSON.stringify(_);\n\t}\n${decoded}`, fwd);
 					return;
 				}
@@ -522,7 +532,7 @@ var rewriter = function(CONFIG) {
 
 			// atob
 			try {
-				let dec = myatob(s);
+				const dec = myatob(s);
 				if (dec) {
 					yield* decodeAll(dec, `\tx = btoa(x);\n${decoded}`);
 					return;
@@ -530,7 +540,7 @@ var rewriter = function(CONFIG) {
 			} catch (_) {};
 
 			// string replace
-			let dec = s.replaceAll("+", " ");
+			const dec = s.replaceAll("+", " ");
 			if (dec !== s) {
 				yield* decodeAll(dec, `\tx = x.replaceAll("+", " ");\n${decoded}`);
 			}
@@ -541,7 +551,7 @@ var rewriter = function(CONFIG) {
 
 			// match all of them
 			try {
-				let dec = real.decodeURIComponent(s);
+				const dec = real.decodeURIComponent(s);
 				if (dec && dec != s) {
 					yield* decodeAll(dec, `\tx = encodeURIComponent(x);\n${decoded}`);
 				}
@@ -549,7 +559,7 @@ var rewriter = function(CONFIG) {
 
 			// match all of them
 			try {
-				let dec = real.decodeURI(s);
+				const dec = real.decodeURI(s);
 				if (dec && dec != s) {
 					yield* decodeAll(dec, `\tx = encodeURIComponent(x);\n${decoded}`);
 				}
@@ -664,7 +674,8 @@ var rewriter = function(CONFIG) {
 			const srcer = CONFIG.sourcer;
 			window[srcer] = (n, v, debug=false) => {
 				if (debug) {
-					real.debug(`[EV] ${document.location.origin} EVSinker '${n}' added: ${v}`);
+					const o = typeof(v) === 'string'? v: real.JSON.stringify(v);
+					real.debug(`[EV] ${document.location.origin} EVSinker '${n}' added: ${o}`);
 				}
 				addToSearch("userSource", {
 						name: `${srcer}[${n}]`,
