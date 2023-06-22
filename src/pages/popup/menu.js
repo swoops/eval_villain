@@ -98,35 +98,39 @@ async function populateSubMenus() {
 
 async function updateSubmenu(target) {
 	let name = target.name;
-	function update(res) {
-		var chg = "enabled";
-		var ident = "name";
+	const {checked, id} = target;
+	let chg = "enabled";
+	let ident = "name";
 
-		if (target.name === "autoOpen") {
-			chg = "open";
-			ident = "pretty";
-		} else if (target.name === "onOff") {
-			chg = "use";
-			ident = "pretty";
-		}
-
-		for (let k of res[name]) {
-			if (k[ident] === target.id) {
-				if (typeof(k[chg]) === 'boolean') {
-					k[chg] = target.checked;
-				}
-				break;
-			}
-		}
-
-		return browser.storage.local.set(res);
+	if (name === "autoOpen") {
+		chg = "open";
+		ident = "pretty";
+	} else if (name === "onOff") {
+		chg = "use";
+		ident = "pretty";
 	}
 
 	if (["autoOpen", "onOff"].includes(name)) {
 		name = "formats";
 	}
-	browser.storage.local.get(name)
-		.then(update)
+
+	const res = await browser.storage.local.get(name);
+	for (let k of res[name]) {
+		if (k[ident] === id && typeof(k[chg]) === 'boolean') {
+			k[chg] = checked;
+			break;
+		}
+	}
+	if (id === "User Sources") {
+		const {globals} = await browser.storage.local.get("globals");
+		globals.forEach(x => {
+			if (x.name == "sourcer")
+				x.enabled = checked;
+		});
+		res.globals = globals;
+	}
+
+	return browser.storage.local.set(res)
 		.then(updateBackground)
 		.then(update_if_on)
 		.catch(err => console.error("failed to get storage: " + err));
