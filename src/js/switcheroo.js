@@ -621,12 +621,12 @@ var rewriter = function(CONFIG) {
 		}
 
 		if (formats.localStore.use){
-			let l = localStorage.length;
+			const l = real.localStorage.length;
 			for (let i=0; i<l; i++) {
-				let name = localStorage.key(i);
+				const name = real.localStorage.key(i);
 				addToSearch("localStore", {
 					param: name,
-					search: localStorage.getItem(name),
+					search: real.localStorage.getItem(name),
 				});
 			}
 		}
@@ -649,6 +649,7 @@ var rewriter = function(CONFIG) {
 		logGroupCollapsed : console.groupCollapsed,
 		trace : console.trace,
 		JSON : JSON,
+		localStorage: localStorage,
 		decodeURIComponent : decodeURIComponent,
 		decodeURI : decodeURI,
 	}
