@@ -55,22 +55,26 @@ var rewriter = function(CONFIG) {
 	*/
 	function getArgs(args) {
 		let ret = [];
+
+		if (typeof(arguments[Symbol.iterator]) !== "function") {
+			throw "Aguments can't be iterated over."
+		}
+
 		for (let i in args) {
 			if (!args.hasOwnProperty(i)) continue;
-			let t = typeCheck(args[i]);
+			const t = typeCheck(args[i]);
 			if (t === null) continue;
-			let str = argToString(args[i]);
-
-			ret.push({
+			const ar = {
 				"type": t,
-				"str" : str,
-				"num" : +i,
-			});
+				"str": argToString(args[i]),
+				"num": +i,
+			}
+			if (t !== "string") {
+				ar["orig"] = args[i];
+			}
+			ret.push(ar);
 		}
-		return {
-			"args" : ret,
-			"len" : args.length,
-		};
+		return {"args" : ret, "len" : args.length};
 	}
 
 	function printTitle(name, format, num) {
@@ -98,28 +102,36 @@ var rewriter = function(CONFIG) {
 	* @argObj {Array} args array of arguments
 	**/
 	function printArgs(argObj) {
-		let argFormat = CONFIG.formats.args;
+		const argFormat = CONFIG.formats.args;
 		if (!argFormat.use) return;
-		let func = argFormat.open ? real.logGroup : real.logGroupCollapsed;
+		const func = argFormat.open ? real.logGroup : real.logGroupCollapsed;
 
-		if (argObj.len === 1	&& argObj.args.length == 1) {
-			let arg = argObj.args[0];
-			let argTitle ="%carg(%s):";
-			let data = [
+		function printFuncAlso(arg) {
+			if (arg.type === "function" && arg.orig) {
+				real.log(arg.orig);
+			}
+		}
+
+		if (argObj.len === 1 && argObj.args.length == 1) {
+			const arg = argObj.args[0];
+			const argTitle ="%carg(%s):";
+			const data = [
 				argFormat.default,
 				arg.type,
 			];
 			func(argTitle, ...data);
 			real.log("%c%s", argFormat.highlight, arg.str);
+			printFuncAlso(arg);
 			real.logGroupEnd(argTitle);
 			return
 		}
 
-		let argTitle = "%carg[%d/%d](%s): "
-		let total = argObj.len;
-		for (let i of argObj.args) {
-			func(argTitle, argFormat.default, i.num+1, total, i.type);
+		const argTitle = "%carg[%d/%d](%s): "
+		const total = argObj.len;
+		for (const i of argObj.args) {
+			func(argTitle, argFormat.default, i.num + 1, total, i.type);
 			real.log("%c%s", argFormat.highlight, i.str);
+			printFuncAlso(i);
 			real.logGroupEnd(argTitle);
 		}
 	}
@@ -288,28 +300,41 @@ var rewriter = function(CONFIG) {
 	* @args {Array}	args array of arguments
 	**/
 	function EvalVillainHook(name, args) {
-		let argObj = getArgs(args);
+		const fmts = CONFIG.formats;
+		let argObj = {};
+		try {
+			argObj = getArgs(args);
+		} catch(err) {
+			real.log("%c[ERROR]%c EV args error: %c%s%c on %c%s%c",
+				fmts.interesting.default,
+				fmts.interesting.highlight,
+				fmts.interesting.default, err, fmts.interesting.highlight,
+				fmts.interesting.default, document.location.href, fmts.interesting.highlight
+			);
+			return false;
+		}
+
 		if (argObj.args.length == 0) {
-			return true;
+			return false;
 		}
 
 		// does this call have an interesting result?
 		let format = null;
-		let printers = getInterest(argObj);
+		const printers = getInterest(argObj);
 
 		if (printers.length > 0) {
-			format = CONFIG.formats.interesting;
+			format = fmts.interesting;
 			if (!format.use) {
 				return false;
 			}
 		} else {
-			format = CONFIG.formats.title;
+			format = fmts.title;
 			if (!format.use) {
 				return false;
 			}
 		}
 
-		let titleGrp = printTitle(name, format, argObj.len);
+		const titleGrp = printTitle(name, format, argObj.len);
 		printArgs(argObj);
 
 		// print all intereresting reuslts
@@ -367,7 +392,7 @@ var rewriter = function(CONFIG) {
 		}
 
 		function hookErr(err, args, evname) {
-			real.warn("[EV] (%s) hook encountered an error: %s", evname, err.message);
+			real.log("[EV] (%s) hook encountered an error: %s", evname, err.message);
 			real.dir(args);
 		}
 		var ownprop = /^(set|value)\(([a-zA-Z.]+)\)\s*$/.exec(evname);
