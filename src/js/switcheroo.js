@@ -8,7 +8,7 @@ var rewriter = function(CONFIG) {
 		fragment : [],
 		query : [],
 		cookie : [],
-		localStorage : [],
+		localStore : [],
 	};
 
 	/**
@@ -236,7 +236,7 @@ var rewriter = function(CONFIG) {
 				let add = "\t";
 				let pmtwo = false;
 				switch (s.name) {
-				case "localStorage":
+				case "localStore":
 					if (!s.param) break;
 					add += `if (y) localStorage.setItem("${s.param}", x);\n\t`;
 					pmtwo = true;
@@ -266,7 +266,6 @@ var rewriter = function(CONFIG) {
 
 		// update search lists with changing input first
 		addChangingSearch();
-
 
 		let ret = [];
 		// do all tests
@@ -625,7 +624,7 @@ var rewriter = function(CONFIG) {
 			let l = localStorage.length;
 			for (let i=0; i<l; i++) {
 				let name = localStorage.key(i);
-				addToSearch("localStorage", {
+				addToSearch("localStore", {
 					param: name,
 					search: localStorage.getItem(name),
 				});
