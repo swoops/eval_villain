@@ -1,14 +1,162 @@
-var rewriter = function(CONFIG) {
+const rewriter = function(CONFIG) {
 	// set of strings to search for
-	const searchSeen = new Set();
-	const search = {
-		userSource : [],
+	const allSearch = {
+		limit: 500,
 		needle : [],
-		winname : [],
-		fragment : [],
-		query : [],
-		cookie : [],
-		localStore : [],
+		fifo: [],
+		fifoSet: new Set(),
+		iterateAll: function*() {
+			for (const i of this.needle) {
+				yield i;
+			}
+			for (const i of this.fifo) {
+				yield i;
+			}
+		},
+
+		addNeedle: function(sObj) {
+			this.needle.push(sObj);
+		},
+
+		push: function(sObj) {
+			const addTo = sObj.name;
+			const intCol = CONFIG.formats.interesting;
+			for (const [search, decode] of decodeFirst(sObj.search)) {
+				const {
+					limit: limit,
+					fifo: fifo,
+					fifoSet: fifoSet,
+				} = this;
+				if (fifoSet.size ===  limit - 1) {
+					real.log(
+					  `%c[EV INFO]%c Interest fifo limit (${limit}) reached. Starting to cycle out old strings. Consider disabling unused interest search features. %c${location.href}`,
+						intCol.highlight, intCol.default, intCol.highlight);
+				} else if (fifoSet.size >= limit) {
+					if (!["needle", "fragment", "query"].includes(addTo) && fifo.length > 0) {
+						// we can remove last item and cycle
+						const last = fifo.shift();
+						fifoSet.delete(last.search);
+					} else {
+						real.log(
+						  `%c[EV WARNING]%c size limit (${limit}) reached for ${addTo} parameters in ${location.href}`,
+							intCol.highlight, intCol.default);
+						break;
+					}
+				}
+
+				fifoSet.add(search);
+				fifo.push({...sObj, search: search, decode: decode});
+			}
+
+			function isNeedleBad(str) {
+				if (typeof(str) !== "string" || str.length == 0 || allSearch.fifoSet.has(str)) {
+					return true;
+				}
+				for (const needle of CONFIG.blacklist) {
+					if (typeof(needle) === "string") {
+						if (needle.length > 0 && str.indexOf(needle) >= 0) {
+							return true;
+						}
+					} else { // regex
+						needle.lastIndex = 0;
+						if (needle.test(str)) {
+							return true;
+						}
+					}
+				}
+				return false;
+			}
+
+			function* decodeFirst(s) {
+				// TODO: Sets...
+				if (typeof(s) === 'string') {
+					yield *decodeAll(s);
+				} else if (typeof(s) === "object") {
+					const fwd = `\t{\n\t\tlet _ = ${JSON.stringify(s)};\n\t\t_`;
+					yield* decodeAny(s, `\t\tx = _\n\t}\n`, fwd);
+				}
+			}
+
+			function* decodeAny(any, decoded, fwd) {
+				if (Array.isArray(any)) {
+					yield* decodeArray(any, decoded, fwd);
+				} else if (typeof(any) == "object"){
+					yield* decodeObject(any, decoded, fwd);
+				} else {
+					yield* decodeAll(any, fwd + "= x;\n" + decoded);
+				}
+			}
+
+			function* decodeArray(a, decoded, fwd) {
+				for (const i in a) {
+					yield* decodeAny(a[i], decoded, fwd+`[${i}]`);
+				}
+			}
+
+			function* decodeObject(o, decoded, fwd) {
+				for (const prop in o) {
+					yield* decodeAny(o[prop], decoded, fwd+`[${JSON.stringify(prop)}]`);
+				}
+			}
+
+			/**
+			* Generate all possible decodings for string
+			* @s {string}	args array of arguments
+			* @decoded {string} string representing deocoding method
+			*
+			**/
+			function* decodeAll(s, decoded="") {
+				if (isNeedleBad (s)) {
+					return;
+				}
+				yield [s, decoded];
+
+				// JSON
+				try {
+					const dec = real.JSON.parse(s);
+					if (dec) {
+						const fwd = `\t{\n\t\tlet _ = ${s};\n\t\t_`;
+						yield* decodeAny(dec, `\t\tx = JSON.stringify(_);\n\t}\n${decoded}`, fwd);
+						return;
+					}
+				} catch (_) {/**/}
+
+				// atob
+				try {
+					const dec = myatob(s);
+					if (dec) {
+						yield* decodeAll(dec, `\tx = btoa(x);\n${decoded}`);
+						return;
+					}
+				} catch (_) {/**/}
+
+				// string replace
+				const dec = s.replaceAll("+", " ");
+				if (dec !== s) {
+					yield* decodeAll(dec, `\tx = x.replaceAll("+", " ");\n${decoded}`);
+				}
+
+				if (!s.includes("%")) {
+					return;
+				}
+
+				// match all of them
+				try {
+					const dec = real.decodeURIComponent(s);
+					if (dec && dec != s) {
+						yield* decodeAll(dec, `\tx = encodeURIComponent(x);\n${decoded}`);
+					}
+				} catch(_){/**/}
+
+				// match all of them
+				try {
+					const dec = real.decodeURI(s);
+					if (dec && dec != s) {
+						yield* decodeAll(dec, `\tx = encodeURIComponent(x);\n${decoded}`);
+					}
+				} catch(_){/**/}
+			}
+		}
 	};
 
 	/**
@@ -80,7 +228,7 @@ var rewriter = function(CONFIG) {
 	function printTitle(name, format, num) {
 		let titleGrp = "%c[EV] %c%s%c %s"
 		let func = real.logGroup;
-		var values = [
+		const values = [
 			format.default, format.highlight, name, format.default, location.href
 		];
 
@@ -189,7 +337,7 @@ var rewriter = function(CONFIG) {
 				let prevLast = 0;
 
 				while ((match = needle.exec(str)) != null) {
-					let m = match[0];
+					const m = match[0];
 					ret.push(holder.substr(0, holder.indexOf(m)));
 					ret.push(m);
 					holder = holder.substr(holder.indexOf(m)+m.length);
@@ -215,16 +363,17 @@ var rewriter = function(CONFIG) {
 			return false;
 		}
 
-		function printer(s, arg, fmt) {
+		function printer(s, arg) {
+			const fmt = CONFIG.formats[s.name];
+			const display = s.display? s.display: s.name;
 			let word = s.search;
 			let dots = "";
 			if (word.length > 80) {
 				dots = "..."
 				word = s.search.substr(0, 77);
 			}
-			let title = [
-				s.param ? `${s.name}[${s.param}]:` : `${s.name}:`,
-				word
+			const title = [
+				s.param ? `${display}[${s.param}]:` : `${display}:`, word
 			];
 			if (argObj.len > 1) {
 				title.push(`${dots} found (arg:`, arg.num, ")");
@@ -235,15 +384,15 @@ var rewriter = function(CONFIG) {
 				title.push(" [Decoded]");
 			}
 
-			let end = zebraGroup(title, fmt);
+			const end = zebraGroup(title, fmt);
 			if (dots) {
-				let d = "Entire needle:"
+				const d = "Entire needle:"
 				real.logGroupCollapsed(d);
 				real.log(s.search);
 				real.logGroupEnd(d);
 			}
 			if (s.decode) {
-				let d = "Encoder function:";
+				const d = "Encoder function:";
 				real.logGroupCollapsed(d);
 				let add = "\t";
 				let pmtwo = false;
@@ -262,7 +411,7 @@ var rewriter = function(CONFIG) {
 					add += `if (y) window.location = x.href;\n\t`
 					pmtwo = true;
 					break;
-				case "window.name":
+				case "winname":
 					add +=  `if (y) window.name = x;\n\t`
 					pmtwo = true;
 					break;
@@ -271,23 +420,20 @@ var rewriter = function(CONFIG) {
 				real.log(`encoder = ${pmtwo ? "(x, y)" : "x"} => {\n${s.decode}${add}return x;\n}//`);
 				real.logGroupEnd(d);
 			}
-			let ar = hlSlice(arg.str, s.search);
+			const ar = hlSlice(arg.str, s.search);
 			zebraLog(ar, fmt);
 			real.logGroupEnd(end);
 		}
 
-		// update search lists with changing input first
+		// update allSearch lists with changing input first
 		addChangingSearch();
 
-		let ret = [];
+		const ret = [];
 		// do all tests
-		for (let field in search) {
-			for (let test of search[field]) {
-				const fmt = CONFIG.formats[field];
-				for (let arg of argObj.args) {
-					if (testit(arg.str, test.search)) {
-						ret.push(()=>printer(test, arg, fmt));
-					}
+		for (const test of allSearch.iterateAll()) {
+			for (const arg of argObj.args) {
+				if (testit(arg.str, test.search)) {
+					ret.push(() => printer(test, arg));
 				}
 			}
 		}
@@ -426,181 +572,34 @@ var rewriter = function(CONFIG) {
 
 	function addChangingSearch() {
 		// window.name
-		var form = CONFIG.formats.winname;
-		let wn = window.name;
+		let form = CONFIG.formats.winname;
 		if (form.use) {
-			addToSearch("winname", {
-					name: "window.name",
-					search: wn,
+			allSearch.push({
+					name: "winname",
+					display: "window.name",
+					search: window.name,
 				});
 		}
 
 		form = CONFIG.formats.fragment;
 		if (form.use) {
-			addToSearch("fragment", {
+			allSearch.push({
+				name: "fragment",
 				search: location.hash.substring(1),
 			});
 		}
 	}
 
-	function addToSearch(addTo, sObj) {
-		if (!sObj.name) {
-			sObj.name = addTo;
-		}
-		for (let tup of decodeFirst(sObj.search)) {
-			if (!addIt(addTo, {
-				name: sObj.name,
-				param: sObj.param,
-				search: tup[0],
-				format: sObj.format,
-				decode: tup[1],
-			})) {
-				break;
-			}
-		}
-
-		function isNeedleBad(str) {
-			if (typeof(str) !== "string" || str.length == 0 || searchSeen.has(str)) {
-				return true;
-			}
-			for (let needle of CONFIG.blacklist) {
-				if (typeof(needle) === "string") {
-					if (needle.length > 0 && str.indexOf(needle) >= 0) {
-						return true;
-					}
-				} else { // regex
-					needle.lastIndex = 0;
-					if (needle.test(str)) {
-						return true;
-					}
-				}
-			}
-			return false;
-		}
-
-		function addIt(addTo, sObj) {
-			const limit = 500;
-			let size = searchSeen.size;
-			const seenlist = search[addTo];
-			if (size >= limit) {
-				if (!["needle", "fragment", "query"].includes(addTo) && seenlist.length > 0) {
-					// we can remove last item and cycle
-					const last = seenlist.shift();
-					searchSeen.delete(last.search);
-				} else {
-					const col = CONFIG.formats.interesting;
-					real.log(
-					  `%c[EV WARNING]%c size limit (${limit}) reached for ${addTo} parameters in ${location.href}`,
-						col.highlight, col.default);
-					return false;
-				}
-			}
-
-			searchSeen.add(sObj.search);
-			seenlist.push(sObj);
-			return true;
-		}
-
-		function* decodeFirst(s) {
-			// TODO: Sets...
-			if (typeof(s) === 'string') {
-				yield *decodeAll(s);
-			} else if (typeof(s) === "object") {
-				const fwd = `\t{\n\t\tlet _ = ${JSON.stringify(s)};\n\t\t_`;
-				yield* decodeAny(s, `\t\tx = _\n\t}\n`, fwd);
-			}
-		}
-
-		function* decodeAny(any, decoded, fwd) {
-			if (Array.isArray(any)) {
-				yield* decodeArray(any, decoded, fwd);
-			} else if (typeof(any) == "object"){
-				yield* decodeObject(any, decoded, fwd);
-			} else {
-				yield* decodeAll(any, fwd + "= x;\n" + decoded);
-			}
-		}
-
-		function* decodeArray(a, decoded, fwd) {
-			for (let i in a) {
-				yield* decodeAny(a[i], decoded, fwd+`[${i}]`);
-			}
-		}
-
-		function* decodeObject(o, decoded, fwd) {
-			for (let prop in o) {
-				yield* decodeAny(o[prop], decoded, fwd+`[${JSON.stringify(prop)}]`);
-			}
-		}
-		/**
-		* Generate all possible decodings for string
-		* @s {string}	args array of arguments
-		* @decoded {string} string representing deocoding method
-		*
-		**/
-		function* decodeAll(s, decoded="") {
-			if (isNeedleBad (s)) {
-				return;
-			}
-			yield [s, decoded];
-
-			// JSON
-			try {
-				const dec = real.JSON.parse(s);
-				if (dec) {
-					const fwd = `\t{\n\t\tlet _ = ${s};\n\t\t_`;
-					yield* decodeAny(dec, `\t\tx = JSON.stringify(_);\n\t}\n${decoded}`, fwd);
-					return;
-				}
-			} catch (_) {};
-
-			// atob
-			try {
-				const dec = myatob(s);
-				if (dec) {
-					yield* decodeAll(dec, `\tx = btoa(x);\n${decoded}`);
-					return;
-				}
-			} catch (_) {};
-
-			// string replace
-			const dec = s.replaceAll("+", " ");
-			if (dec !== s) {
-				yield* decodeAll(dec, `\tx = x.replaceAll("+", " ");\n${decoded}`);
-			}
-
-			if (!s.includes("%")) {
-				return;
-			}
-
-			// match all of them
-			try {
-				const dec = real.decodeURIComponent(s);
-				if (dec && dec != s) {
-					yield* decodeAll(dec, `\tx = encodeURIComponent(x);\n${decoded}`);
-				}
-			} catch(_){}
-
-			// match all of them
-			try {
-				const dec = real.decodeURI(s);
-				if (dec && dec != s) {
-					yield* decodeAll(dec, `\tx = encodeURIComponent(x);\n${decoded}`);
-				}
-			} catch(_){}
-		}
-	}
-
 	function buildSearches() {
-		var formats = CONFIG["formats"];
+		const formats = CONFIG.formats;
 
 		// needles
 		if (formats.needle.use) {
-			for (let needle of CONFIG["needles"]) {
-				search.needle.push({
+			for (const needle of CONFIG.needles) {
+				allSearch.addNeedle({
 					name:"needle",
 					search: needle,
-					format: CONFIG.formats["needle"],
+					format: formats["needle"],
 					decode: "",
 				});
 			}
@@ -619,7 +618,8 @@ var rewriter = function(CONFIG) {
 						real.warn("[EV] More then 200 URL parameters?");
 						break;
 					}
-					addToSearch("query", {
+					allSearch.push({
+						name: "query", 
 						param: match[1],
 						search: match[2],
 					});
@@ -632,12 +632,13 @@ var rewriter = function(CONFIG) {
 			for (let i of document.cookie.split(/;\s*/)) {
 				let s = i.split("=");
 				if (s.length >= 2) {
-					addToSearch("cookie", {
+					allSearch.push({
+						name: "cookie",
 						param: s[0],
 						search: s[1],
 					});
 				} else {
-					addToSearch("cookie", {
+					allSearch.push({
 						name: `cookie`,
 						search: s[0],
 					});
@@ -649,7 +650,9 @@ var rewriter = function(CONFIG) {
 			const l = real.localStorage.length;
 			for (let i=0; i<l; i++) {
 				const name = real.localStorage.key(i);
-				addToSearch("localStore", {
+				allSearch.push({
+					name: "localStore", 
+					display: "localStorage",
 					param: name,
 					search: real.localStorage.getItem(name),
 				});
@@ -702,8 +705,9 @@ var rewriter = function(CONFIG) {
 					const o = typeof(v) === 'string'? v: real.JSON.stringify(v);
 					real.debug(`[EV] ${document.location.origin} EVSinker '${n}' added: ${o}`);
 				}
-				addToSearch("userSource", {
-						name: `${srcer}[${n}]`,
+				allSearch.push({
+						name: "userSource", 
+						display: `${srcer}[${n}]`,
 						search: v,
 					});
 				return false;
