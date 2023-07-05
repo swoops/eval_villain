@@ -177,11 +177,11 @@ const rewriter = function(CONFIG) {
 	* @arg arg Argument to have it's type checked
 	*/
 	function typeCheck(arg) {
-		let knownTypes = [
+		const knownTypes = [
 			"function", "string", "number", "object", "undefined", "boolean",
 			"symbol"
 		];
-		let t = typeof(arg);
+		const t = typeof(arg);
 
 		// sanity
 		if (!knownTypes.includes(t)) {
@@ -202,13 +202,13 @@ const rewriter = function(CONFIG) {
 	* @args {Object} args `arugments` object of hooked function
 	*/
 	function getArgs(args) {
-		let ret = [];
+		const ret = [];
 
 		if (typeof(arguments[Symbol.iterator]) !== "function") {
 			throw "Aguments can't be iterated over."
 		}
 
-		for (let i in args) {
+		for (const i in args) {
 			if (!args.hasOwnProperty(i)) continue;
 			const t = typeCheck(args[i]);
 			if (t === null) continue;
@@ -285,9 +285,9 @@ const rewriter = function(CONFIG) {
 	}
 
 	function zebraBuild(arr, fmts) { // fmt2 is used via arguments
-		let fmt = "%c%s".repeat(arr.length);
-		let args = [];
-		for (var i=0; i<arr.length; i++) {
+		const fmt = "%c%s".repeat(arr.length);
+		const args = [];
+		for (let i=0; i<arr.length; i++) {
 			args.push(fmts[i % 2]);
 			args.push(arr[i]);
 		}
@@ -300,7 +300,7 @@ const rewriter = function(CONFIG) {
 	}
 
 	function zebraGroup(arr, fmt) {
-		let a = zebraBuild(arr, [fmt.default, fmt.highlight]);
+		const a = zebraBuild(arr, [fmt.default, fmt.highlight]);
 		if (fmt.open) {
 			real.logGroup(...a);
 		} else {
@@ -489,9 +489,9 @@ const rewriter = function(CONFIG) {
 		// stack display
 		// don't put this into a function, it will be one more thing on the call
 		// stack
-		let stackFormat = CONFIG.formats.stack;
+		const stackFormat = CONFIG.formats.stack;
 		if (stackFormat.use) {
-			let stackTitle = "%cstack: "
+			const stackTitle = "%cstack: "
 			if (stackFormat.open) {
 				real.logGroup(stackTitle, stackFormat.default);
 			} else {
@@ -505,11 +505,11 @@ const rewriter = function(CONFIG) {
 	} // end EvalVillainHook
 
 	class evProxy {
-		apply(target, thisArg, args) {
+		apply(_target, _thisArg, args) {
 			EvalVillainHook(this.evname, args);
 			return Reflect.apply(...arguments);
 		}
-		construct(target, args, newArg) {
+		construct(_target, args, _newArg) {
 			EvalVillainHook(this.evname, args);
 			return Reflect.construct(...arguments);
 		}
@@ -523,9 +523,9 @@ const rewriter = function(CONFIG) {
 	*/
 	function applyEvalVillain(evname) {
 		function getFunc(n) {
-			let ret = {}
+			const ret = {}
 			ret.where = window;
-			let groups = n.split(".");
+			const groups = n.split(".");
 			let i = 0; // outside for loop for a reason
 			for (i=0; i<groups.length-1; i++) {
 				ret.where = ret.where[groups[i]];
@@ -537,29 +537,25 @@ const rewriter = function(CONFIG) {
 			return ret ? ret : null;
 		}
 
-		function hookErr(err, args, evname) {
-			real.log("[EV] (%s) hook encountered an error: %s", evname, err.message);
-			real.dir(args);
-		}
-		var ownprop = /^(set|value)\(([a-zA-Z.]+)\)\s*$/.exec(evname);
-		let ep = new evProxy;
+		const ownprop = /^(set|value)\(([a-zA-Z.]+)\)\s*$/.exec(evname);
+		const ep = new evProxy;
 		ep.evname = evname
 		if (ownprop) {
-			let prop = ownprop[1];
-			let f = getFunc(ownprop[2]);
-			let orig = Object.getOwnPropertyDescriptor(f.where.prototype, f.leaf)[prop];
+			const prop = ownprop[1];
+			const f = getFunc(ownprop[2]);
+			const orig = Object.getOwnPropertyDescriptor(f.where.prototype, f.leaf)[prop];
 			Object.defineProperty(f.where.prototype, f.leaf, {[prop] : new Proxy(orig, ep)});
 		} else if (!/^[a-zA-Z.]+$/.test(evname)) {
 			real.log("[EV] name: %s invalid, not hooking", evname);
 		} else {
-			let f = getFunc(evname);
+			const f = getFunc(evname);
 			f.where[f.leaf] = new Proxy(f.where[f.leaf], ep);
 		}
 	}
 
 	function strToRegex(obj) {
 		for (let i=0; i<obj.length; i++) {
-			let match = /^\/(.*)\/(i|g|gi|ig)?$/.exec(obj[i]);
+			const match = /^\/(.*)\/(i|g|gi|ig)?$/.exec(obj[i]);
 			if (match) {
 				try {
 					obj[i] = new RegExp(match[1], match[2] === undefined ? "" : match[2]);
@@ -608,9 +604,9 @@ const rewriter = function(CONFIG) {
 		// query string
 		if (formats.query.use) {
 			// entire query
-			let query = window.location.search;
+			const query = window.location.search;
 			if (query.length > 1) {
-				let re = /[&\?]([^=]*)=([^&]*)/g;
+				const re = /[&\?]([^=]*)=([^&]*)/g;
 				let loop = 0;
 				let match = false;
 				while (match = re.exec(query)) {
@@ -629,8 +625,8 @@ const rewriter = function(CONFIG) {
 
 		// cookies
 		if (formats.cookie.use) {
-			for (let i of document.cookie.split(/;\s*/)) {
-				let s = i.split("=");
+			for (const i of document.cookie.split(/;\s*/)) {
+				const s = i.split("=");
 				if (s.length >= 2) {
 					allSearch.push({
 						name: "cookie",
@@ -667,7 +663,7 @@ const rewriter = function(CONFIG) {
 	delete CONFIG["checkId"];
 
 	// grab real functions before hooking
-	var real = {
+	const real = {
 		log : console.log,
 		debug : console.debug,
 		warn : console.warn,
@@ -682,7 +678,7 @@ const rewriter = function(CONFIG) {
 		decodeURI : decodeURI,
 	}
 	myatob = atob;
-	for (let name of CONFIG["functions"]) {
+	for (const name of CONFIG["functions"]) {
 		applyEvalVillain(name);
 	}
 
@@ -752,7 +748,7 @@ function inject_it(func, info) {
 	info["checkId"] = checkId;
 	inject = `(${func})(${JSON.stringify(info)});`;
 
-	var s = document.createElement('script');
+	const s = document.createElement('script');
 	s.type = "text/javascript";
 	s.onload = () => this.remove(); // Keep dom clean
 	s.innerHTML = inject; // yeah, it's ironic
