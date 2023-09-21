@@ -11,6 +11,11 @@ function updateToggle(on) {
 	d.innerText = "Villain is " + (on ? "ON" : "OFF");
 }
 
+async function update_if_on() {
+	const on = await amIOn();
+	updateToggle(on);
+}
+
 function createCheckBox(name, checked, subMenu) {
 	var d = document;
 	var li = d.createElement("li");
@@ -44,88 +49,90 @@ function createCheckBox(name, checked, subMenu) {
 	return li;
 }
 
-function getSections() {
-	let ret =  browser.storage.local.get(["targets", "needles", "blacklist", "functions", "types", "formats"]);
-	return ret.then(all => {
-		let autoOpen = [];
-		let onOff = [];
-		for (let k of all.formats) {
-			autoOpen.push({
-				name: k.pretty,
-				pattern: k.name,
-				enabled: k.open,
-			});
-			onOff.push({
-				name: k.pretty,
-				pattern: k.name,
-				enabled: k.use,
-			});
-		}
-		all.autoOpen = autoOpen;
-		all.onOff = onOff;
-		delete all.formats;
-		return all;
-	});
+async function getSections() {
+	const all = await browser.storage.local.get(["targets", "needles", "blacklist", "functions", "types", "formats"]);
+	const autoOpen = [];
+	const onOff = [];
+	for (let k of all.formats) {
+		autoOpen.push({
+			name: k.pretty,
+			pattern: k.name,
+			enabled: k.open,
+		});
+		onOff.push({
+			name: k.pretty,
+			pattern: k.name,
+			enabled: k.use,
+		});
+	}
+	all.autoOpen = autoOpen;
+	all.onOff = onOff;
+	delete all.formats;
+	return all;
 }
 
-function populateSubMenus() {
-	function writeDOM(res) {
-		for (let sub of configList) {
-			if (!res[sub]) {
-				console.error("Could not get: " + sub);
-			}
+async function populateSubMenus() {
+	const res = await getSections();
+	for (let sub of configList) {
+		if (!res[sub]) {
+			console.error("Could not get: " + sub);
+		}
 
-			var where = document.getElementById(`${sub}-sub`);
-			for (let itr of res[sub]) {
-				let inpt = createCheckBox(itr.name, itr.enabled, sub);
+		var where = document.getElementById(`${sub}-sub`);
+		for (let itr of res[sub]) {
+			if (typeof(itr.enabled) === 'boolean') {
+				const inpt = createCheckBox(itr.name, itr.enabled, sub);
 				where.appendChild(inpt);
 			}
+		}
 
-			if (res[sub].length == 0) {
-				let em = document.createElement("em");
-				em.innerText = "Nothing Configured";
-				em.className = "configure";
-				em.onclick = () => goToConfig();
-				where.appendChild(em);
-			}
+		if (res[sub].length == 0) {
+			const em = document.createElement("em");
+			em.innerText = "Nothing Configured";
+			em.className = "configure";
+			em.onclick = () => goToConfig();
+			where.appendChild(em);
 		}
 	}
-
-	getSections()
-		.then(writeDOM, err => console.error("failed to get storage: " + err));
 }
 
-function updateSubmenu(target) {
-	var name = target.name;
-	function update(res) {
-		var chg = "enabled";
-		var ident = "name";
+async function updateSubmenu(target) {
+	let name = target.name;
+	const {checked, id} = target;
+	let chg = "enabled";
+	let ident = "name";
 
-		if (target.name === "autoOpen") {
-			chg = "open";
-			ident = "pretty";
-		} else if (target.name === "onOff") {
-			chg = "use";
-			ident = "pretty";
-		}
-		for (let k of res[name]) {
-			if (k[ident] === target.id) {
-				k[chg] = target.checked;
-				break;
-			}
-		}
-
-		return browser.storage.local.set(res);
+	if (name === "autoOpen") {
+		chg = "open";
+		ident = "pretty";
+	} else if (name === "onOff") {
+		chg = "use";
+		ident = "pretty";
 	}
 
 	if (["autoOpen", "onOff"].includes(name)) {
 		name = "formats";
 	}
-	browser.storage.local.get(name)
-		.then(update)
+
+	const res = await browser.storage.local.get(name);
+	for (let k of res[name]) {
+		if (k[ident] === id && typeof(k[chg]) === 'boolean') {
+			k[chg] = checked;
+			break;
+		}
+	}
+	if (id === "User Sources") {
+		const {globals} = await browser.storage.local.get("globals");
+		globals.forEach(x => {
+			if (x.name == "sourcer")
+				x.enabled = checked;
+		});
+		res.globals = globals;
+	}
+
+	return browser.storage.local.set(res)
 		.then(updateBackground)
-		.then(amIOn)
-		.then(updateToggle)
+		.then(update_if_on)
 		.catch(err => console.error("failed to get storage: " + err));
 }
 
@@ -137,8 +144,7 @@ function listener(ev) {
 	if (node === "INPUT") {
 		if (id === "toggle") {															// on off button
 			toggleBackground()
-				.then(amIOn)
-				.then(updateToggle)
+				.then(update_if_on)
 				.catch(err => {
 					console.error(`toggle error: ${err}`);
 					updateToggle(false);
@@ -169,7 +175,6 @@ function goToConfig() {
 		return;
 }
 
-amIOn().then(updateToggle);
+update_if_on();
 document.addEventListener("click", listener);
 populateSubMenus();
-// vim: set sw=2:ts=2:sts=2:ft=javascript:et

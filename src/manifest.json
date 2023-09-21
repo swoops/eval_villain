@@ -13,7 +13,6 @@
 		"scripts": ["/js/background.js"]
 	},
 
-
 	"browser_action": {
 		"default_title": "EvalVillain: off",
 		"default_icon": {

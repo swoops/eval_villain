@@ -62,7 +62,7 @@ var defaultConfig = {
 		}, {
 			"name" : "Boolean",
 			"enabled" : true,
-			"pattern" : "/^\s*(?:true|false)\s*$/gi"
+			"pattern" : "/^\\s*(?:true|false)\\s*$/gi"
 		}
 	],
 	"needles" : [
@@ -112,6 +112,17 @@ var defaultConfig = {
 			"name": "symbol",
 			"pattern": "symbol",
 			"enabled": false
+		}
+	],
+	"globals" : [
+		{
+			"name" : "sinker",
+			"enabled" : false,
+			"pattern" : "evSinker"
+		}, {
+			"name" : "sourcer",
+			"enabled" : false,
+			"pattern" : "evSourcer"
 		}
 	],
 	"formats": [
@@ -179,14 +190,32 @@ var defaultConfig = {
 			"default"	: "color: none",
 			"highlight" : "color: yellow"
 		}, {
+			"name"		: "userSource",
+			"pretty"	: "User Sources",
+			"use"		: true,
+			"open"		: false,
+			"default"	: "color: none",
+			"highlight" : "color:#147599"
+		}, {
 			"name"		: "stack",
 			"pretty"	: "Stack Display",
 			"use"		: true,
 			"open"		: false,
 			"default"	: "color: none",
 			"highlight" : "color: #088"
+		}, {
+			"name"		: "logReroute",
+			"pretty"	: "Log Reroute",
+			"use"		: true,
+			"open"		: null,
+			"default"	: "N/A",
+			"highlight" : "N/A"
 		}
 	]
+}
+
+function getAllConf() {
+	return browser.storage.local.get(Object.keys(defaultConfig)).catch(console.error);
 }
 
 function debugLog() {
@@ -194,19 +223,13 @@ function debugLog() {
 	console.log(...arguments);
 }
 
-function checkStorage() {
+async function checkStorage() {
 	function saveIfNot(result) {
 		function updateIt(what) {
 			let k = {};
 			k[what] = defaultConfig[what];
 			return browser.storage.local.set(k)
 				.then(() => console.log(`updated ${what}`));
-		}
-
-		// XXX compatability, fixing spelling error in config, remove in later
-		// version
-		if (result.hasOwnProperty("types") && result.types[0].hasOwnProperty("patern")) {
-			updateIt("types");
 		}
 
 		for (let iter in defaultConfig) {
@@ -220,7 +243,6 @@ function checkStorage() {
 				// if defaultConfig has changed since install, we update
 				let names = [];
 				result.formats.forEach(x => names.push(x.name));
-				let k = 0;
 				for (let def of defaultConfig.formats) {
 					if (names.includes(def)) {
 						defaultConfig.formats = res.formats[names.indexOf(def)];
@@ -230,11 +252,7 @@ function checkStorage() {
 			}
 		}
 	}
-
-	let allStorage = Object.keys(defaultConfig);
-
-	return browser.storage.local.get(allStorage)
-		.then(saveIfNot);
+	return getAllConf().then(saveIfNot);
 }
 
 // the following are default, they will be replaced by what is in the browser
@@ -261,18 +279,17 @@ async function register() {
 			throw "Failed to get storage for content script";
 		}
 		return checkStorage()
-			.then(() => browser.storage.local.get(allStorage))
+			.then(() => getAllConf())
 			.then(doReg);
 	}
 
 	function doReg(result) {
-		for (let i of allStorage) {
+		for (let i of Object.keys(defaultConfig)) {
 			if (result[i] === undefined || !Array.isArray(result[i])) {
 				return fixStorage();
 			}
 		}
 
-		var match = [];
 		let config = {};
 		config.formats = {};
 		for (let i of result.formats) {
@@ -281,16 +298,15 @@ async function register() {
 			delete tmp.name;
 		}
 
-		// types list of enabled types
-		config.types = [];
-		for (let i of result.types) {
+		// globals
+		for (let i of result.globals) {
 			if (i.enabled) {
-				config.types.push(i.pattern);
+				config[i.name] = i.pattern;
 			}
 		}
 
-		for (let what of ["needles", "blacklist", "functions"]) {
-			let tmp = [];
+		for (let what of ["needles", "blacklist", "functions", "types"]) {
+			const tmp = [];
 			for (let i of result[what]) {
 				if (i.enabled) {
 					tmp.push(i.pattern);
@@ -306,6 +322,7 @@ async function register() {
 		}
 
 		// target stuff {
+		var match = [];
 		let targRegex = /^(https?|wss?|file|ftp|\*):\/\/(\*|\*\.[^|)}>#]+|[^|)}>#]+)\/.*$/;
 		for (let i of result.targets) {
 			if (i.enabled) {
@@ -321,6 +338,7 @@ async function register() {
 				}
 			}
 		}
+
 		// no targets enabled means do all
 		if (match.length === 0) {
 			match.push("<all_urls>");
@@ -339,8 +357,7 @@ async function register() {
 		});
 	}
 
-	let allStorage = Object.keys(defaultConfig);
-	return browser.storage.local.get(allStorage)
+	return getAllConf()
 		.then(doReg)
 		.then(worked);
 }
@@ -361,7 +378,7 @@ function removeScript(icon=true) {
 function toggleEV() {
 	if (unreg) {
 		removeScript();
-		return new Promise(function(g,b) {g(false)});
+		return new Promise(function(g) {g(false)});
 	} else {
 		return register();
 	}
@@ -373,8 +390,8 @@ browser.commands.onCommand.addListener(function(command) {
 
 function handleMessage(request, sender, sendResponse) {
 	if (request === "on?") {
-		return new Promise(function(good, bad) {
-			good(unreg ? true : false);
+		return new Promise(function(g) {
+			g(unreg ? true : false);
 		});
 	} else if (request === "toggle") {
 		return toggleEV();
@@ -382,7 +399,7 @@ function handleMessage(request, sender, sendResponse) {
 		if (unreg) {
 			return register();
 		} else {
-			return new Promise(function(g,b) {g(false)});
+			return new Promise(function(g) {g(false)});
 		}
 	} else {
 		console.err("unknown msg: " + request);

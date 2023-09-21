@@ -1,4 +1,4 @@
-var configList = ["targets", "needles",  "blacklist", "functions"];
+var configList = ["targets", "needles",  "blacklist", "functions", "globals"];
 var normalHeaders = ["enabled", "name", "pattern"]; 
 var formatsHeader = ["default", "highlight"];
 
@@ -37,15 +37,20 @@ function unsavedTable(tblName) {
 	}
 
 	function compareFormatData(saved, tblData) {
-		// size does not change, so one to one comparison
-		for (let i in saved) {
-			let name = tblData[i].row.querySelector("input:disabled").name;
-
-			if (name != saved[i].name) {
+		for (let j = 0, i = 0; i < saved.length; i++) {
+			const save = saved[i];
+			if (saved[i].open === null) {
+				// Can't be updated, not in table
+				continue;
+			}
+			const tbl = tblData[j++];
+			let name = tbl.row.querySelector("input:disabled").name;
+			if (name != save.name) {
 				throw "Color table does not align with formats";
 			}
+
 			for (let h of formatsHeader) {
-				if (tblData[i][h] != saved[i][h]) {
+				if (tbl[h] != save[h]) {
 					markSaved(false);
 					return;
 				}
@@ -81,17 +86,21 @@ function unsavedTable(tblName) {
 		.then(compareData);
 }
 
-function createField(name, value, tblName) {
+function createField(name, value, tblName, disabled=false) {
 	let div = document.createElement("div");
 	div.className = "cell";
 	let input = document.createElement("input");
+	input.disabled = disabled;
+
 	input.type = "text";
 	input.value = value;
 	input.name = name;
-	input.onblur = function(e) {
-		validate(e.target);
-		unsavedTable(tblName);
-	};
+	if (!disabled) {
+		input.onblur = function(e) {
+			validate(e.target);
+			unsavedTable(tblName);
+		};
+	}
 
 	div.appendChild(input);
 	return div;
@@ -105,8 +114,6 @@ function defAddRow(tblName, ex, focus=false) {
 		ecks.innerText = "\u2297"; // CIRCLED TIMES
 		ecks.className = "ecks";
 		delRow.appendChild(ecks);
-
-		document.getElementById(tblName + "-deletes").appendChild(delRow);
 		ecks.onclick = function() {
 			// remove inputs from errors, if they exist
 			for (let input of row.getElementsByTagName("input")) {
@@ -118,6 +125,7 @@ function defAddRow(tblName, ex, focus=false) {
 			delRow.remove();
 			unsavedTable(tblName);
 		}
+		document.getElementById(tblName + "-deletes").appendChild(delRow);
 	}
 
 	function createSwitch() {
@@ -151,7 +159,7 @@ function defAddRow(tblName, ex, focus=false) {
 	}
 
 	cols[0].appendChild(createSwitch());
-	cols[1].appendChild(createField("name", ex.name, tblName));
+	cols[1].appendChild(createField("name", ex.name, tblName, tblName == "globals"));
 	cols[2].appendChild(createField("pattern", ex.pattern, tblName));
 
 	for (let c of cols) {
@@ -159,29 +167,38 @@ function defAddRow(tblName, ex, focus=false) {
 	}
 
 	document.getElementById(`${tblName}-form`).appendChild(row);
-	addDelete();
+	if (tblName != "globals") {
+		addDelete();
+	}
 	if (focus) {
 		row.getElementsByTagName("input")[1].focus();
 	}
 }
 
-function colorSave() {
-	function saveIt(res) {
-		let saved = res.formats;
-		let tblData = getTableData("formats");
+async function colorSave() {
+	const res = await browser.storage.local.get("formats");
+	const saved = res.formats;
+	const tblData = getTableData("formats");
 
-		for (let i in saved) {
-			for (let h of formatsHeader) {
-				saved[i][h] = tblData[i][h];
-			}
+	for (let j = 0, i = 0; i < saved.length; i++) {
+		const save = saved[i];
+		if (saved[i].open === null) {
+			// Can't be updated, not in table
+			continue;
 		}
-		browser.storage.local.set(res)
+		const tbl = tblData[j++];
+		let name = tbl.row.querySelector("input:disabled").name;
+		if (name != save.name) {
+			throw "Color table does not align with formats";
+		}
+
+		for (let h of formatsHeader) {
+			save[h] = tbl[h];
+		}
+	}
+	browser.storage.local.set(res)
 		.then(updateBackground)
 		.then(unsavedTable("formats"));
-	}
-
-	browser.storage.local.get("formats")
-		.then(saveIt);
 }
 
 function getDefElements(form) {
@@ -218,7 +235,7 @@ function saveTable(tblName) {
 function onLoad() {
 	function appendDefault(tblName) {
 		var example = { "name" : "", "enabled" : true, "pattern" : "" }
-		defAddRow(tblName, example, true, true);
+		defAddRow(tblName, example, focus=true);
 	}
 
 	function writeDOM(res) {
@@ -228,7 +245,7 @@ function onLoad() {
 			}
 
 			for (let itr of res[sub]) {
-				defAddRow(sub, itr, false, true);
+				defAddRow(sub, itr);
 			}
 		}
 		for (let sub of configList) {
@@ -239,9 +256,11 @@ function onLoad() {
 
 	// set onclick events to default buttons
 	for (let i of configList) {
-		document.getElementById(`add-${i}`).onclick = function() {
-			appendDefault(i);
-			unsavedTable(i);
+		if (i != "globals") {
+			document.getElementById(`add-${i}`).onclick = function() {
+				appendDefault(i);
+				unsavedTable(i);
+			}
 		}
 		document.getElementById(`save-${i}`).onclick = function() {
 			saveTable(i);
@@ -249,16 +268,12 @@ function onLoad() {
 		}
 	}
 
-	let fin = []
 	let result = browser.storage.local.get(configList);
 	result.then(
 		writeDOM,
-		function(err) { console.error("failed to get storage: " + err) }
+		err => console.error("failed to get storage: " + err)
 	);
 	populateColors();
-
-	// only after the tables have been populated can you acuratly scroll to the
-	// section you want
 }
 
 // this table is different, rather then trying to abstract it, just handle it
@@ -269,8 +284,7 @@ function populateColors() {
 	function createInptCol(name, value, disabled=false) {
 		let col = document.createElement("div");
 		col.className = "col-md";
-		let field = createField(name, value, "formats");
-		field.querySelector("input").disabled = disabled;
+		let field = createField(name, value, "formats", disabled);
 		col.appendChild(field);
 		return col;
 	}
@@ -292,10 +306,10 @@ function populateColors() {
 		}
 
 		let tbl = document.getElementById("formats-form");
-		let names = ["title", "interesting", "args", "needle", "query", "fragment", "winname", "cookie", "localStore", "stack"];
-
 		for (let i of formats) {
-			tbl.appendChild(createRow(i));
+			if (i.open !== null) {
+				tbl.appendChild(createRow(i));
+			}
 		}
 		return true;
 	}

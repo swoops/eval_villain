@@ -1,9 +1,10 @@
 var errors = {
-	targets		 : [],
-	needles		 : [],
-	blacklist  : [],
-	functions  : [],
-	formats			: []
+	targets: [],
+	needles: [],
+	blacklist: [],
+	functions: [],
+	globals: [],
+	formats: []
 };
 
 function validateTable(tblName) {
@@ -19,7 +20,6 @@ function validateTable(tblName) {
 	let names = new Set();
 	for (let name of form.querySelectorAll("input[name=name]")) {
 		if (names.has(name.value)) {
-			console.log("Duplciate name");
 			gotError(name, tblName, `Duplicate name "${name.value}"`);
 			erCount++;
 		} else {
@@ -37,21 +37,25 @@ function validateTable(tblName) {
 function validate(dom, tblName=null) {
 	// should validate every single possible field
 	let v = {
-		targets:	 {
+		targets: {
 			name: validateName,
 			pattern: validateTargetPattern
 		},
-		needles:	 {
+		needles: {
 			name: validateName,
 			pattern: validateNeedlesPattern
 		},
-		blacklist:	 {
+		blacklist: {
 			name: validateName,
 			pattern: validateNeedlesPattern
 		},
 		functions: {
 			name: validateName,
 			pattern: validateFunctionsPattern
+		},
+		globals: {
+			name: () => false,
+			pattern: validateName
 		},
 		formats: {
 			default: validateColor,
