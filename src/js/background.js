@@ -1,8 +1,8 @@
-var unreg = null;
-var debug = false;
+const unreg = null;
+const debug = false;
 
 // default config stuff
-var defaultConfig = {
+const defaultConfig = {
 	"functions" : [
 		{
 			"name" : "eval",
@@ -226,13 +226,13 @@ function debugLog() {
 async function checkStorage() {
 	function saveIfNot(result) {
 		function updateIt(what) {
-			let k = {};
+			const k = {};
 			k[what] = defaultConfig[what];
 			return browser.storage.local.set(k)
 				.then(() => console.log(`updated ${what}`));
 		}
 
-		for (let iter in defaultConfig) {
+		for (const iter in defaultConfig) {
 			if (result[iter] === undefined) {
 				updateIt(iter); // DNE, add it
 			} else if (iter === "formats") {
@@ -241,9 +241,9 @@ async function checkStorage() {
 					continue;
 				}
 				// if defaultConfig has changed since install, we update
-				let names = [];
+				const names = [];
 				result.formats.forEach(x => names.push(x.name));
-				for (let def of defaultConfig.formats) {
+				for (const def of defaultConfig.formats) {
 					if (names.includes(def)) {
 						defaultConfig.formats = res.formats[names.indexOf(def)];
 					}
@@ -284,30 +284,30 @@ async function register() {
 	}
 
 	function doReg(result) {
-		for (let i of Object.keys(defaultConfig)) {
+		for (const i of Object.keys(defaultConfig)) {
 			if (result[i] === undefined || !Array.isArray(result[i])) {
 				return fixStorage();
 			}
 		}
 
-		let config = {};
+		const config = {};
 		config.formats = {};
-		for (let i of result.formats) {
-			let tmp = Object.assign({}, i);
+		for (const i of result.formats) {
+			const tmp = Object.assign({}, i);
 			config.formats[tmp.name] = tmp;
 			delete tmp.name;
 		}
 
 		// globals
-		for (let i of result.globals) {
+		for (const i of result.globals) {
 			if (i.enabled) {
 				config[i.name] = i.pattern;
 			}
 		}
 
-		for (let what of ["needles", "blacklist", "functions", "types"]) {
+		for (const what of ["needles", "blacklist", "functions", "types"]) {
 			const tmp = [];
-			for (let i of result[what]) {
+			for (const i of result[what]) {
 				if (i.enabled) {
 					tmp.push(i.pattern);
 				}
@@ -322,9 +322,9 @@ async function register() {
 		}
 
 		// target stuff {
-		var match = [];
-		let targRegex = /^(https?|wss?|file|ftp|\*):\/\/(\*|\*\.[^|)}>#]+|[^|)}>#]+)\/.*$/;
-		for (let i of result.targets) {
+		const match = [];
+		const targRegex = /^(https?|wss?|file|ftp|\*):\/\/(\*|\*\.[^|)}>#]+|[^|)}>#]+)\/.*$/;
+		for (const i of result.targets) {
 			if (i.enabled) {
 				if (targRegex.test(i.pattern)) {
 					match.push(i.pattern);
