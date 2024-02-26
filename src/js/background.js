@@ -1,5 +1,5 @@
-const unreg = null;
-const debug = false;
+var unreg = null;
+var debug = false;
 
 // default config stuff
 const defaultConfig = {
