@@ -1,6 +1,3 @@
-var unreg = null;
-var debug = false;
-
 // default config stuff
 const defaultConfig = {
 	"functions" : [
@@ -218,167 +215,171 @@ function getAllConf() {
 	return browser.storage.local.get(Object.keys(defaultConfig)).catch(console.error);
 }
 
+async function getAllConfValidated() {
+	let dbconf = await getAllConf();
+	for (let i = 0; i < 2; i++) { // retry loop
+		let success = true;
+		for (const i of Object.keys(defaultConfig)) {
+			if (dbconf[i] === undefined || !Array.isArray(dbconf[i])) {
+				await checkStorage();
+				dbconf = await getAllConf();
+				success = false;
+			}
+		}
+		if (success) {
+			return dbconf;
+		}
+	}
+	return null;
+}
+
 function debugLog() {
-	if (!debug) return;
+	if (!this.debug) return;
 	console.log(...arguments);
 }
 
 async function checkStorage() {
-	function saveIfNot(result) {
-		function updateIt(what) {
-			const k = {};
-			k[what] = defaultConfig[what];
-			return browser.storage.local.set(k)
-				.then(() => console.log(`updated ${what}`));
-		}
+	const dbconf = await getAllConf();
 
-		for (const iter in defaultConfig) {
-			if (result[iter] === undefined) {
-				updateIt(iter); // DNE, add it
-			} else if (iter === "formats") {
-				if (!Array.isArray(result.formats)) {
-					updateIt(iter, defaultConfig);
-					continue;
-				}
-				// if defaultConfig has changed since install, we update
-				const names = [];
-				result.formats.forEach(x => names.push(x.name));
-				for (const def of defaultConfig.formats) {
-					if (names.includes(def)) {
-						defaultConfig.formats = res.formats[names.indexOf(def)];
-					}
-				}
+	function updateIt(what) {
+		const k = {};
+		k[what] = defaultConfig[what];
+		return browser.storage.local.set(k)
+			.then(() => console.log(`updated ${what}`));
+	}
+
+	for (const iter in defaultConfig) {
+		if (dbconf[iter] === undefined) {
+			updateIt(iter); // DNE, add it
+		} else if (iter === "formats") {
+			if (!Array.isArray(dbconf.formats)) {
+				updateIt(iter);
+				continue;
+			}
+			// if defaultConfig has changed since install, we update
+			const currentNames = dbconf.formats.map(x => x.name);
+			const defNames = defaultConfig.formats.map(x => x.name);
+			if (!arraysEqual(currentNames, defNames)) {
 				updateIt(iter);
 			}
 		}
 	}
-	return getAllConf().then(saveIfNot);
 }
 
-// the following are default, they will be replaced by what is in the browser
-// cache
+function arraysEqual(a, b) {
+	if (a.length !== b.length) {
+		return false;
+	}
+	for (let i = 0; i < a.length; i++) {
+		if (a[i] !== b[i]) {
+			return false;
+		}
+	}
+	return true;
+}
+
+async function getConfigForRegister() {
+	const dbconf = await getAllConfValidated();
+		// .then(worked);
+
+	const config = {};
+	config.formats = {};
+	for (const i of dbconf.formats) {
+		const tmp = Object.assign({}, i);
+		config.formats[tmp.name] = tmp;
+		delete tmp.name;
+	}
+
+	// globals
+	for (const i of dbconf.globals) {
+		if (i.enabled) {
+			config[i.name] = i.pattern;
+		}
+	}
+
+	for (const what of ["needles", "blacklist", "functions", "types"]) {
+		config[what] = config[what] = dbconf[what]
+			.filter(x => x.enabled)
+			.map(x => x.pattern);
+	}
+
+	// target stuff {
+	const match = [];
+	const targRegex = /^(https?|wss?|file|ftp|\*):\/\/(\*|\*\.[^|)}>#]+|[^|)}>#]+)\/.*$/;
+	for (const i of dbconf.targets) {
+		if (i.enabled) {
+			if (targRegex.test(i.pattern)) {
+				match.push(i.pattern);
+			} else {
+				throw `Error on Target ${i.name}: ${i.pattern} must match: ${targRegex}`;
+			}
+		}
+	}
+
+	// no targets enabled means do all
+	if (match.length === 0) {
+		match.push("<all_urls>");
+	}
+	debugLog("[EV DEBUG] matches: %s", match);
+	return [config, match];
+}
+
+
+/**
+* Registers the content script with the current config
+**/
 async function register() {
-	let trycnt = 0;
-	if (unreg != null) {
+	if (this.unreg != null) {
 		// content script is registered already, so remove it first don't worry
 		// about the icon though, if we fail something else will change it to off
 		removeScript(false);
 	}
+	const [config, match] = await getConfigForRegister();
 
-	function worked(x) {
-		unreg = x;
-		browser.browserAction.setTitle({title : "EvalVillain: ON"});
-		browser.browserAction.setIcon({path : "/icons/on_48.png"});
-		debugLog("[EV_DEBUG] %cInjection Script registered", "color:#088;")
-		return new Promise(res => res());
+	// anything to register?
+	if (config.functions.length === 0) {
+		removeScript();
+		res(false);
+		return;
 	}
 
-	function fixStorage() {
-		if (trycnt++ > 2) {
-			trycnt = 0;
-			throw "Failed to get storage for content script";
-		}
-		return checkStorage()
-			.then(() => getAllConf())
-			.then(doReg);
-	}
+	const code = `config = ${JSON.stringify(config)};`;
 
-	function doReg(result) {
-		for (const i of Object.keys(defaultConfig)) {
-			if (result[i] === undefined || !Array.isArray(result[i])) {
-				return fixStorage();
-			}
-		}
 
-		const config = {};
-		config.formats = {};
-		for (const i of result.formats) {
-			const tmp = Object.assign({}, i);
-			config.formats[tmp.name] = tmp;
-			delete tmp.name;
-		}
+	// firefox >=59, not supported in chrome...
+	this.unreg = await browser.contentScripts.register({
+		matches: match,
+		js: [
+			{code: code},
+			{file: "/js/switcheroo.js"}
+		],
+		runAt: "document_start",
+		allFrames: true
+	});
 
-		// globals
-		for (const i of result.globals) {
-			if (i.enabled) {
-				config[i.name] = i.pattern;
-			}
-		}
-
-		for (const what of ["needles", "blacklist", "functions", "types"]) {
-			const tmp = [];
-			for (const i of result[what]) {
-				if (i.enabled) {
-					tmp.push(i.pattern);
-				}
-			}
-			config[what] = tmp;
-		}
-
-		if (config.functions.length === 0) {
-			removeScript();
-			res(false);
-			return;
-		}
-
-		// target stuff {
-		const match = [];
-		const targRegex = /^(https?|wss?|file|ftp|\*):\/\/(\*|\*\.[^|)}>#]+|[^|)}>#]+)\/.*$/;
-		for (const i of result.targets) {
-			if (i.enabled) {
-				if (targRegex.test(i.pattern)) {
-					match.push(i.pattern);
-				} else {
-					console.error(
-						"Error on Target %s: %s must match: %s",
-						i.name, i.pattern, targRegex
-					);
-					res(false);
-					return;
-				}
-			}
-		}
-
-		// no targets enabled means do all
-		if (match.length === 0) {
-			match.push("<all_urls>");
-		}
-		debugLog("[EV DEBUG] matches: %s", match);
-
-		// firefox >=59, not supported in chrome...
-		return browser.contentScripts.register({
-			matches: match,
-			js: [
-				{code: "config = " + JSON.stringify(config)},
-				{file: "/js/switcheroo.js"}
-			],
-			runAt: "document_start",
-			allFrames : true
-		});
-	}
-
-	return getAllConf()
-		.then(doReg)
-		.then(worked);
+	browser.browserAction.setTitle({title: "EvalVillain: ON"});
+	browser.browserAction.setIcon({path: "/icons/on_48.png"});
+	debugLog("[EV_DEBUG] %cInjection Script registered", "color:#088;")
+	return true;
 }
 
 function removeScript(icon=true) {
-	if (unreg) {
-		unreg.unregister();
+	if (this.unreg) {
+		this.unreg.unregister();
 	}
-	unreg = null;
+	this.unreg = null;
 
 	if (icon) {
 		// turn of UI
-		browser.browserAction.setTitle({title : "EvalVillain: OFF"});
-		browser.browserAction.setIcon({ path : "/icons/off_48.png"});
+		browser.browserAction.setTitle({title: "EvalVillain: OFF"});
+		browser.browserAction.setIcon({ path: "/icons/off_48.png"});
 	}
 }
 
 function toggleEV() {
-	if (unreg) {
+	if (this.unreg) {
 		removeScript();
-		return new Promise(function(g) {g(false)});
+		return new Promise(res => res());
 	} else {
 		return register();
 	}
@@ -388,28 +389,32 @@ browser.commands.onCommand.addListener(function(command) {
 	if (command == "toggle") toggleEV();
 });
 
-function handleMessage(request, sender, sendResponse) {
+function handleMessage(request, _sender, _sendResponse) {
 	if (request === "on?") {
-		return new Promise(function(g) {
-			g(unreg ? true : false);
-		});
+		return new Promise(res => res(this.unreg ? true: false));
 	} else if (request === "toggle") {
 		return toggleEV();
 	} else if (request === "updated") {
-		if (unreg) {
+		if (this.unreg) {
 			return register();
 		} else {
-			return new Promise(function(g) {g(false)});
+			return new Promise(res => res(false));
 		}
+	} else if (request === "getScriptInfo") {
+		return getConfigForRegister();
 	} else {
-		console.err("unknown msg: " + request);
+		const er = `unkown msg: ${request}`;
+		console.error(er);
 	}
 }
 
 function handleInstalled(details) {
-	debug = details.temporary;
+	this.debug = details.temporary;
 	debugLog("[EV DEBUG] installed with debugging");
 	checkStorage();
+	if (this.debug) {
+		register();
+	}
 }
 
 browser.runtime.onMessage.addListener(handleMessage);

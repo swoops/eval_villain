@@ -331,4 +331,14 @@ function colorTest() {
 	});
 }
 
+async function getConfig() {
+	let si = browser.runtime.sendMessage("getScriptInfo");
+	try {
+		si = await browser.runtime.sendMessage("getScriptInfo");
+	} catch (err) {
+		console.log(err);
+	}
+	console.log(si);
+}
+
 self.addEventListener('load', onLoad);
