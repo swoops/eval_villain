@@ -1,4 +1,10 @@
 const rewriter = function(CONFIG) {
+	// handled this way to preserve encoding...
+	function getAllQueryParams(search) {
+		return search.substr(search[0] == '?'? 1: 0)
+			.split("&").map(x => x.split(/=(.*)/s));
+	}
+
 	// set of strings to search for
 	const allSearch = {
 		limit: 500,
@@ -120,6 +126,48 @@ const rewriter = function(CONFIG) {
 						return;
 					}
 				} catch (_) {/**/}
+
+				// URL decoder
+				try {
+					const url = new URL(s);
+					// This caused a lot of spam, so removing for now
+					// if (url.hostname != location.hostname) {
+					// 	const dec = ``
+					// 		+ `\t{\n`
+					// 		+ `\t\tconst _ = new URL("${s.replaceAll('"', "%22")}");\n`
+					// 		+ `\t\t_.hostname = x;\n`
+					// 		+ `\t\tx = _.href;\n`
+					// 		+ `\t}\n`
+					// 		+ decoded;
+					// 	yield* decodeAll(url.hostname, dec);
+					// }
+
+					// query string of URL
+					for (const [key, value] of getAllQueryParams(url.search)) {
+						const dec = ``
+							+ `\t{\n`
+							+ `\t\tconst _ = new URL("${s.replaceAll('"', "%22")}");\n`
+							+ `\t\t_.searchParams.set('${key.replaceAll('"', '\x22')}', decodeURIComponent(x));\n`
+							+ `\t\tx = _.href;\n`
+							+ `\t}\n`
+							+ decoded;
+						yield* decodeAll(value, dec);
+					}
+					if (url.hash.length > 1) {
+						const dec = ``
+							+ `\t{\n`
+							+ `\t\tconst _ = new URL("${s.replaceAll('"', "%22")}");\n`
+							+ `\t\t_.hash = x;\n`
+							+ `\t\tx = _.href;\n`
+							+ `\t}\n`
+							+ decoded;
+						yield* decodeAll(url.hash.substring(1), dec);
+					}
+				} catch (err) {
+					if (err.name !== "TypeError" || !err.message.startsWith("URL constructor: ")) {
+						real.log(err.name);
+					}
+				}
 
 				// atob
 				try {
@@ -404,11 +452,11 @@ const rewriter = function(CONFIG) {
 					break;
 				case "query":
 					if (!s.param) break;
-					add +=  `let _ = new URL(window.location.href);\n\t`
+					add +=  `const _ = new URL(window.location.href);\n\t`
 					add += `// next line might need some changes\n\t`;
-					add += `_.searchParams.set('${s.param}', decodeURIComponent(x));\n\t`;
-					add += `x = {href: _.href, param: x};\n\t`;
-					add += `if (y) window.location = x.href;\n\t`
+					add += `_.searchParams.set('${s.param.replaceAll('"', '\x22')}', decodeURIComponent(x));\n\t`;
+					add += `x = _.href;\n\t`;
+					add += `if (y) window.location = x;\n\t`
 					pmtwo = true;
 					break;
 				case "winname":
@@ -602,25 +650,14 @@ const rewriter = function(CONFIG) {
 		}
 
 		// query string
-		if (formats.query.use) {
-			// entire query
-			const query = window.location.search;
-			if (query.length > 1) {
-				const re = /[&\?]([^=]*)=([^&]*)/g;
-				let loop = 0;
-				let match = false;
-				while (match = re.exec(query)) {
-					if (loop++ > 200) {
-						real.warn("[EV] More then 200 URL parameters?");
-						break;
-					}
-					allSearch.push({
-						name: "query", 
-						param: match[1],
-						search: match[2],
-					});
-				} // while regex loop
-			} // if query.length
+		if (formats.query.use && window.location.search.length > 1) {
+			for (const [key, value] of getAllQueryParams(window.location.search)) {
+				allSearch.push({
+					name: "query",
+					param: key,
+					search: value
+				});
+			}
 		}
 
 		// cookies
@@ -647,7 +684,7 @@ const rewriter = function(CONFIG) {
 			for (let i=0; i<l; i++) {
 				const name = real.localStorage.key(i);
 				allSearch.push({
-					name: "localStore", 
+					name: "localStore",
 					display: "localStorage",
 					param: name,
 					search: real.localStorage.getItem(name),
@@ -702,7 +739,7 @@ const rewriter = function(CONFIG) {
 					real.debug(`[EV] ${document.location.origin} EVSinker '${n}' added: ${o}`);
 				}
 				allSearch.push({
-						name: "userSource", 
+						name: "userSource",
 						display: `${srcer}[${n}]`,
 						search: v,
 					});
