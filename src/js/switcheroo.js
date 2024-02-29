@@ -5,17 +5,51 @@ const rewriter = function(CONFIG) {
 			.split("&").map(x => x.split(/=(.*)/s));
 	}
 
+	class SourceFifo {
+		constructor(limit) {
+			this.limit = limit;
+			this.fifo = [];
+			this.set = new Set();
+			this.removed = 0;
+		}
+
+		nq(sObj) {
+			this.set.add(sObj.search);
+			this.fifo.push(sObj);
+			while (this.set.size > this.limit) {
+				this.removed++;
+				this.dq();
+			}
+			return this.removed;
+		}
+
+		dq() {
+			const last = this.fifo.shift();
+			this.set.delete(last.search);
+			return last;
+		}
+
+		has(x) {
+			return this.set.has(x);
+		}
+
+		*iterateAll() {
+			for (const i of this.fifo) {
+				yield i;
+			}
+		}
+	}
+
 	// set of strings to search for
 	const allSearch = {
-		limit: 500,
 		needle : [],
-		fifo: [],
-		fifoSet: new Set(),
+		fifo : new SourceFifo(500),
+
 		iterateAll: function*() {
 			for (const i of this.needle) {
 				yield i;
 			}
-			for (const i of this.fifo) {
+			for (const i of this.fifo.iterateAll()) {
 				yield i;
 			}
 		},
@@ -25,37 +59,18 @@ const rewriter = function(CONFIG) {
 		},
 
 		push: function(sObj) {
-			const addTo = sObj.name;
 			const intCol = CONFIG.formats.interesting;
 			for (const [search, decode] of decodeFirst(sObj.search)) {
-				const {
-					limit: limit,
-					fifo: fifo,
-					fifoSet: fifoSet,
-				} = this;
-				if (fifoSet.size ===  limit - 1) {
-					real.log(
-					  `%c[EV INFO]%c Interest fifo limit (${limit}) reached. Starting to cycle out old strings. Consider disabling unused interest search features. %c${location.href}`,
-						intCol.highlight, intCol.default, intCol.highlight);
-				} else if (fifoSet.size >= limit) {
-					if (!["needle", "fragment", "query"].includes(addTo) && fifo.length > 0) {
-						// we can remove last item and cycle
-						const last = fifo.shift();
-						fifoSet.delete(last.search);
-					} else {
-						real.log(
-						  `%c[EV WARNING]%c size limit (${limit}) reached for ${addTo} parameters in ${location.href}`,
-							intCol.highlight, intCol.default);
-						break;
-					}
+				const throwaway = allSearch.fifo.nq({...sObj, search: search, decode: decode});
+				if (throwaway % 32 == 1) {
+					real.log(`%c[EV INFO]%c Interest fifo limit (${allSearch.fifo.limit}) exceeded, thrown away ${throwaway} items. Consider disabling unused interest search features. %c${location.href}`,
+						intCol.highlight, intCol.default, intCol.highlight
+					);
 				}
-
-				fifoSet.add(search);
-				fifo.push({...sObj, search: search, decode: decode});
 			}
 
 			function isNeedleBad(str) {
-				if (typeof(str) !== "string" || str.length == 0 || allSearch.fifoSet.has(str)) {
+				if (typeof(str) !== "string" || str.length == 0 || allSearch.fifo.has(str)) {
 					return true;
 				}
 				for (const needle of CONFIG.blacklist) {
