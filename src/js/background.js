@@ -173,6 +173,13 @@ const defaultConfig = {
 			"default"	: "color: none",
 			"highlight" : "color: #088"
 		}, {
+			"name"		: "referrer",
+			"pretty"	: "Referrer Search",
+			"use"		: false,
+			"open"		: true,
+			"default"	: "color: none",
+			"highlight" : "color: #088"
+		}, {
 			"name"		: "cookie",
 			"pretty"	: "Cookie Search",
 			"use"		: true,

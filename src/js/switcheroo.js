@@ -660,6 +660,18 @@ const rewriter = function(CONFIG) {
 			}
 		}
 
+		// referer
+		if (formats.referrer && document.referrer) {
+			const url = new URL(document.referrer);
+			// don't show if referer is just https://example.com/ and we are on an example.com domain
+			if (url.search != location.search || url.search && url.pathname !== "/" && url.hostname !== location.hostname) {
+				allSearch.push({
+					name: "referrer",
+					search: document.referrer
+				});
+			}
+		}
+
 		// cookies
 		if (formats.cookie.use) {
 			for (const i of document.cookie.split(/;\s*/)) {
