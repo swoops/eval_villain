@@ -173,6 +173,13 @@ const defaultConfig = {
 			"default"	: "color: none",
 			"highlight" : "color: #088"
 		}, {
+			"name"		: "path",
+			"pretty"	: "Path Search",
+			"use"		: false,
+			"open"		: true,
+			"default"	: "color: none",
+			"highlight" : "color: #088"
+		}, {
 			"name"		: "referrer",
 			"pretty"	: "Referrer Search",
 			"use"		: false,

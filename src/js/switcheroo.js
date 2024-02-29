@@ -660,6 +660,19 @@ const rewriter = function(CONFIG) {
 			}
 		}
 
+		// path
+		if (formats.path && location.pathname !== "/") {
+			location.pathname
+				.substring(1)
+				.split('/').forEach((elm, index) => {
+					allSearch.push({
+					name: `path`,
+					param: ""+index,
+					search: elm
+				});
+			});
+		}
+
 		// referer
 		if (formats.referrer && document.referrer) {
 			const url = new URL(document.referrer);
