@@ -42,20 +42,12 @@ const rewriter = function(CONFIG) {
 
 	// set of strings to search for
 	const allSearch = {
-		needle : [],
 		fifo : new SourceFifo(500),
 
 		iterateAll: function*() {
-			for (const i of this.needle) {
-				yield i;
-			}
 			for (const i of this.fifo.iterateAll()) {
 				yield i;
 			}
-		},
-
-		addNeedle: function(sObj) {
-			this.needle.push(sObj);
 		},
 
 		push: function(sObj) {
@@ -73,19 +65,7 @@ const rewriter = function(CONFIG) {
 				if (typeof(str) !== "string" || str.length == 0 || allSearch.fifo.has(str)) {
 					return true;
 				}
-				for (const needle of CONFIG.blacklist) {
-					if (typeof(needle) === "string") {
-						if (needle.length > 0 && str.indexOf(needle) >= 0) {
-							return true;
-						}
-					} else { // regex
-						needle.lastIndex = 0;
-						if (needle.test(str)) {
-							return true;
-						}
-					}
-				}
-				return false;
+				return blacklist.matchAny(str);
 			}
 
 			function* decodeFirst(s) {
@@ -377,17 +357,22 @@ const rewriter = function(CONFIG) {
 	*
 	* @argObj {Array} args array of arguments
 	**/
-	function getInterest(argObj) {
-		function hlSlice(str, needle) {
+	function getInterest(argObj, needleTests) {
+
+		function strSpliter(str, needle) {
 			const ret = [];
-			if (typeof(needle) === "string") {
-				str.split(needle).forEach((x,index,arr)=> {
-					ret.push(x)
-					if (index != arr.length-1) {
-						ret.push(needle)
-					}
-				});
-			} else if (needle.global == false) {
+			str.split(needle).forEach((x,index,arr)=> {
+				ret.push(x)
+				if (index != arr.length-1) {
+					ret.push(needle)
+				}
+			});
+			return ret;
+		}
+
+		function regexSpliter(str, needle) {
+			const ret = [];
+			if (needle.global == false) {
 				// not global regex, so just split into two on first
 				needle.lastIndex = 0;
 				const m = needle.exec(str)[0];
@@ -415,18 +400,7 @@ const rewriter = function(CONFIG) {
 			return ret;
 		}
 
-		function testit(str, needle) {
-			if (typeof(needle) === "string") {
-				if (str.includes(needle)) {
-					return true;
-				}
-			} else if (needle.test(str)) {
-				return true;
-			}
-			return false;
-		}
-
-		function printer(s, arg) {
+		function printer(s, arg, spliter) {
 			const fmt = CONFIG.formats[s.name];
 			const display = s.display? s.display: s.name;
 			let word = s.search;
@@ -483,7 +457,7 @@ const rewriter = function(CONFIG) {
 				real.log(`encoder = ${pmtwo ? "(x, y)" : "x"} => {\n${s.decode}${add}return x;\n}//`);
 				real.logGroupEnd(d);
 			}
-			const ar = hlSlice(arg.str, s.search);
+			const ar = spliter(arg.str, s.search);
 			zebraLog(ar, fmt);
 			real.logGroupEnd(end);
 		}
@@ -492,11 +466,22 @@ const rewriter = function(CONFIG) {
 		addChangingSearch();
 
 		const ret = [];
+
+		// needles first
+		for (const arg of argObj.args) {
+			for (const match of needles.genMatches(arg.str)) {
+				const split = typeof(match) === "string"? strSpliter: regexSpliter;
+				ret.push(() => printer({
+						name: "needle", search: match, decode:""
+					}, arg, split));
+			}
+		}
+
 		// do all tests
 		for (const test of allSearch.iterateAll()) {
 			for (const arg of argObj.args) {
-				if (testit(arg.str, test.search)) {
-					ret.push(() => printer(test, arg));
+				if (arg.str.includes(test.search)) {
+					ret.push(() => printer(test, arg, strSpliter));
 				}
 			}
 		}
@@ -616,23 +601,9 @@ const rewriter = function(CONFIG) {
 		}
 	}
 
-	function strToRegex(obj) {
-		for (let i=0; i<obj.length; i++) {
-			const match = /^\/(.*)\/(i|g|gi|ig)?$/.exec(obj[i]);
-			if (match) {
-				try {
-					obj[i] = new RegExp(match[1], match[2] === undefined ? "" : match[2]);
-				} catch (err) {
-					real.warn("[EV] Creating regex %s error: %s", obj[i].name, err.message);
-				}
-			}
-		}
-	}
-
 	function addChangingSearch() {
 		// window.name
-		let form = CONFIG.formats.winname;
-		if (form.use) {
+		if (CONFIG.formats.winname) {
 			allSearch.push({
 					name: "winname",
 					display: "window.name",
@@ -640,8 +611,7 @@ const rewriter = function(CONFIG) {
 				});
 		}
 
-		form = CONFIG.formats.fragment;
-		if (form.use) {
+		if (CONFIG.formats.fragment) {
 			allSearch.push({
 				name: "fragment",
 				search: location.hash.substring(1),
@@ -649,20 +619,61 @@ const rewriter = function(CONFIG) {
 		}
 	}
 
-	function buildSearches() {
-		const formats = CONFIG.formats;
-
-		// needles
-		if (formats.needle.use) {
-			for (const needle of CONFIG.needles) {
-				allSearch.addNeedle({
-					name:"needle",
-					search: needle,
-					format: formats["needle"],
-					decode: "",
-				});
+	class NeedleBundle {
+		constructor(needleList) {
+			this.needles = [];
+			this.regNeedle = [];
+			const test = /^\/(.*)\/(i|g|gi|ig)?$/;
+			for (const need of needleList) {
+				const s = test.exec(need);
+				if (s) {
+					const reg = new RegExp(s[1], 
+						s[2] === undefined? "": s[2]);
+					this.regNeedle.push(reg);
+				} else {
+					this.needles.push(need);
+				}
 			}
 		}
+
+		*genStrMatches(str) {
+			for (const need of this.needles) {
+				if (str.includes(need)) {
+					yield need;
+				}
+			}
+		}
+
+		*getRegMatches(str) {
+			for (const need of this.regNeedle) {
+				need.lastIndex = 0; // just to be sure there is no funny buisness
+				if (need.test(str)) {
+					yield need;
+				}
+			}
+		}
+
+		*genMatches(str) {
+			for (const match of this.genStrMatches(str)) {
+				yield match;
+			}
+			for (const match of this.genStrMatches(str)) {
+				yield match;
+			}
+		}
+
+		matchAny(str) {
+			for (const match of this.genMatches(str)) {
+				if (match) {
+					return true;
+				}
+			}
+			return false;
+		}
+	}
+
+	function buildSearches() {
+		const formats = CONFIG.formats;
 
 		// query string
 		if (formats.query.use && window.location.search.length > 1) {
@@ -789,8 +800,8 @@ const rewriter = function(CONFIG) {
 		}
 	}
 
-	strToRegex(CONFIG.needles);
-	strToRegex(CONFIG.blacklist);
+	const needles = new NeedleBundle(CONFIG.needles);
+	const blacklist = new NeedleBundle(CONFIG.blacklist);
 	buildSearches(); // must be after needles are turned to regex
 
 	real.log("%c[EV]%c Functions hooked for %c%s%c",
