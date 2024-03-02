@@ -40,6 +40,81 @@ const rewriter = function(CONFIG) {
 		}
 	}
 
+	function strSpliter(str, needle) {
+		const ret = [];
+		str.split(needle).forEach((x, index, arr)=> {
+			ret.push(x)
+			if (index != arr.length-1) {
+				ret.push(needle)
+			}
+		});
+		return ret;
+	}
+
+	function regexSpliter(str, needle) {
+		const ret = [];
+		if (!needle.exec) {
+			debugger;
+		}
+		if (needle.global == false) {
+			// not global regex, so just split into two on first
+			needle.lastIndex = 0;
+			const m = needle.exec(str)[0];
+			const l = str.split(m);
+			ret.push(l[0], m, l[1]);
+		} else {
+			let holder = str;
+			let match = null;
+			needle.lastIndex = 0;
+			let prevLast = 0;
+
+			while ((match = needle.exec(str)) != null) {
+				const m = match[0];
+				ret.push(holder.substr(0, holder.indexOf(m)));
+				ret.push(m);
+				holder = holder.substr(holder.indexOf(m)+m.length);
+				if (prevLast >= needle.lastIndex) {
+					real.warn("[EV] Attempting to highlight matches for this regex will cause infinite loop, stopping")
+					break;
+				}
+				prevLast = needle.lastIndex;
+			}
+			ret.push(holder);
+		}
+		return ret;
+	}
+
+
+
+	/*
+	 * class contains all information needed to do an interest check
+	*/
+	class SearchBundle {
+		constructor(needles) {
+			this.needles = needles;
+		}
+
+		*genSplits(str) {
+			for (const match of this.needles.genStrMatches(str)) {
+				const ret = {
+					name: "needle", decode:"",
+					search: match,
+					split: strSpliter(str, match)
+				};
+				yield ret;
+			}
+			for (const match of this.needles.genRegMatches(str)) {
+				const ret = {
+					name: "needle", decode:"",
+					search: match,
+					split: regexSpliter(str, match)
+				};
+				yield ret;
+			}
+		}
+
+	}
+
 	// set of strings to search for
 	const allSearch = {
 		fifo : new SourceFifo(500),
@@ -357,48 +432,7 @@ const rewriter = function(CONFIG) {
 	*
 	* @argObj {Array} args array of arguments
 	**/
-	function getInterest(argObj, needleTests) {
-
-		function strSpliter(str, needle) {
-			const ret = [];
-			str.split(needle).forEach((x,index,arr)=> {
-				ret.push(x)
-				if (index != arr.length-1) {
-					ret.push(needle)
-				}
-			});
-			return ret;
-		}
-
-		function regexSpliter(str, needle) {
-			const ret = [];
-			if (needle.global == false) {
-				// not global regex, so just split into two on first
-				needle.lastIndex = 0;
-				const m = needle.exec(str)[0];
-				const l = str.split(m);
-				ret.push(l[0], m, l[1]);
-			} else {
-				let holder = str;
-				let match = null;
-				needle.lastIndex = 0;
-				let prevLast = 0;
-
-				while ((match = needle.exec(str)) != null) {
-					const m = match[0];
-					ret.push(holder.substr(0, holder.indexOf(m)));
-					ret.push(m);
-					holder = holder.substr(holder.indexOf(m)+m.length);
-					if (prevLast >= needle.lastIndex) {
-						real.warn("[EV] Attempting to highlight matches for this regex will cause infinite loop, stopping")
-						break;
-					}
-					prevLast = needle.lastIndex;
-				}
-				ret.push(holder);
-			}
-			return ret;
-		}
+	function getInterest(argObj, intrBundle) {
 
 		function printer(s, arg, spliter) {
 			const fmt = CONFIG.formats[s.name];
@@ -457,7 +491,7 @@ const rewriter = function(CONFIG) {
 				real.log(`encoder = ${pmtwo ? "(x, y)" : "x"} => {\n${s.decode}${add}return x;\n}//`);
 				real.logGroupEnd(d);
 			}
-			const ar = spliter(arg.str, s.search);
+			const ar = s.split? s.split: strSpliter(arg.str, s.search);
 			zebraLog(ar, fmt);
 			real.logGroupEnd(end);
 		}
@@ -469,11 +503,8 @@ const rewriter = function(CONFIG) {
 
 		// needles first
 		for (const arg of argObj.args) {
-			for (const match of needles.genMatches(arg.str)) {
-				const split = typeof(match) === "string"? strSpliter: regexSpliter;
-				ret.push(() => printer({
-						name: "needle", search: match, decode:""
-					}, arg, split));
+			for (const match of intrBundle.genSplits(arg.str)) {
+				ret.push(() => printer(match, arg, null));
 			}
 		}
 
@@ -493,7 +524,7 @@ const rewriter = function(CONFIG) {
 	* @name {string} name Name of function that is being hooked
 	* @args {Array}	args array of arguments
 	**/
-	function EvalVillainHook(name, args) {
+	function EvalVillainHook(intrBundle, name, args) {
 		const fmts = CONFIG.formats;
 		let argObj = {};
 		try {
@@ -514,7 +545,7 @@ const rewriter = function(CONFIG) {
 
 		// does this call have an interesting result?
 		let format = null;
-		const printers = getInterest(argObj);
+		const printers = getInterest(argObj, intrBundle);
 
 		if (printers.length > 0) {
 			format = fmts.interesting;
@@ -554,11 +585,11 @@ const rewriter = function(CONFIG) {
 
 	class evProxy {
 		apply(_target, _thisArg, args) {
-			EvalVillainHook(this.evname, args);
+			EvalVillainHook(INTRBUNDLE, this.evname, args);
 			return Reflect.apply(...arguments);
 		}
 		construct(_target, args, _newArg) {
-			EvalVillainHook(this.evname, args);
+			EvalVillainHook(INTRBUNDLE, this.evname, args);
 			return Reflect.construct(...arguments);
 		}
 	}
@@ -644,7 +675,7 @@ const rewriter = function(CONFIG) {
 			}
 		}
 
-		*getRegMatches(str) {
+		*genRegMatches(str) {
 			for (const need of this.regNeedle) {
 				need.lastIndex = 0; // just to be sure there is no funny buisness
 				if (need.test(str)) {
@@ -776,7 +807,7 @@ const rewriter = function(CONFIG) {
 	}
 
 	if (CONFIG.sinker) {
-		window[CONFIG.sinker] = EvalVillainHook;
+		window[CONFIG.sinker] = (x,y) => EvalVillainHook(INTRBUNDLE, x, y);
 		delete CONFIG.sinker;
 	}
 
@@ -800,8 +831,8 @@ const rewriter = function(CONFIG) {
 		}
 	}
 
-	const needles = new NeedleBundle(CONFIG.needles);
 	const blacklist = new NeedleBundle(CONFIG.blacklist);
+	const INTRBUNDLE = new SearchBundle(new NeedleBundle(CONFIG.needles));
 	buildSearches(); // must be after needles are turned to regex
 
 	real.log("%c[EV]%c Functions hooked for %c%s%c",
