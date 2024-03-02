@@ -171,7 +171,7 @@ const rewriter = function(CONFIG) {
 
 				// atob
 				try {
-					const dec = myatob(s);
+					const dec = real.atob.call(window, s);
 					if (dec) {
 						yield* decodeAll(dec, `\tx = btoa(x);\n${decoded}`);
 						return;
@@ -738,8 +738,8 @@ const rewriter = function(CONFIG) {
 		localStorage: localStorage,
 		decodeURIComponent : decodeURIComponent,
 		decodeURI : decodeURI,
+		atob: atob,
 	}
-	myatob = atob;
 	for (const name of CONFIG["functions"]) {
 		applyEvalVillain(name);
 	}
