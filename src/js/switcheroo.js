@@ -33,12 +33,26 @@ const rewriter = function(CONFIG) {
 			return this.set.has(x);
 		}
 
-		*iterateAll() {
-			for (const i of this.fifo) {
-				yield i;
+		*genAllMatches(str) {
+			for (const sObj of this.fifo) {
+				if (str.includes(sObj.search)) {
+					yield sObj;
+				}
 			}
 		}
 	}
+
+	// TODO allow user to configure each FIFO size
+	const ALLSOURCES = {
+		"query": new SourceFifo(200),
+		"fragment": new SourceFifo(64),
+		"winname": new SourceFifo(200), // can get large for safeFrames
+		"path": new SourceFifo(32),
+		"cookie": new SourceFifo(32),
+		"referrer": new SourceFifo(32),
+		"localStore": new SourceFifo(100),
+		"userSource": new SourceFifo(100),
+	};
 
 	function strSpliter(str, needle) {
 		const ret = [];
@@ -53,9 +67,6 @@ const rewriter = function(CONFIG) {
 
 	function regexSpliter(str, needle) {
 		const ret = [];
-		if (!needle.exec) {
-			debugger;
-		}
 		if (needle.global == false) {
 			// not global regex, so just split into two on first
 			needle.lastIndex = 0;
@@ -84,198 +95,266 @@ const rewriter = function(CONFIG) {
 		return ret;
 	}
 
+	/** Contains regex/str searches for needles/blacklists **/
+	class NeedleBundle {
 
+		/**
+		 * Hold user defined needles, string/regex, to search sinks for.
+		 * @param {string[]} needleList Array of needles, as strings
+		 * @example
+		 * // Needle bundle for substring `asdf` and regex `/asdf/gi`
+		 * const x = new NeedleBundle(["asdf", "/asdf/gi"]);
+		 **/
+		constructor(needleList) {
+			this.needles = [];
+			this.regNeedle = [];
+			const test = /^\/(.*)\/(i|g|gi|ig)?$/;
+			for (const need of needleList) {
+				const s = test.exec(need);
+				if (s) {
+					const reg = new RegExp(s[1],
+						s[2] === undefined? "": s[2]);
+					this.regNeedle.push(reg);
+				} else {
+					this.needles.push(need);
+				}
+			}
+		}
 
-	/*
-	 * class contains all information needed to do an interest check
-	*/
+		*genStrMatches(str) {
+			for (const need of this.needles) {
+				if (str.includes(need)) {
+					yield need;
+				}
+			}
+		}
+
+		*genRegMatches(str) {
+			for (const need of this.regNeedle) {
+				need.lastIndex = 0; // just to be sure there is no funny buisness
+				if (need.test(str)) {
+					need.lastIndex = 0; // This line is important b/c JS regex holds a state secretly :(
+					yield need;
+				}
+			}
+		}
+
+		*genMatches(str) {
+			for (const match of this.genStrMatches(str)) {
+				yield match;
+			}
+			for (const match of this.genRegMatches(str)) {
+				yield match;
+			}
+		}
+
+		matchAny(str) {
+			for (const match of this.genMatches(str)) {
+				if (match) {
+					return true;
+				}
+			}
+			return false;
+		}
+	}
+
+	/** Everything that might make a particular sink interesting */
 	class SearchBundle {
-		constructor(needles) {
+		/**
+		 * Contains qualifications for sink to be considered interesting
+		 * @param {NeedleBundle}	needles Needles ie user provided string/regex
+		 * @param {object}	fifoBank Maps source name to `SourceFifo`
+		 **/
+		constructor(needles, fifoBank) {
 			this.needles = needles;
+			this.fifoBank = fifoBank
 		}
 
 		*genSplits(str) {
 			for (const match of this.needles.genStrMatches(str)) {
-				const ret = {
+				yield {
 					name: "needle", decode:"",
 					search: match,
 					split: strSpliter(str, match)
 				};
-				yield ret;
 			}
 			for (const match of this.needles.genRegMatches(str)) {
-				const ret = {
+				yield {
 					name: "needle", decode:"",
 					search: match,
 					split: regexSpliter(str, match)
 				};
-				yield ret;
+			}
+
+			for (const [key, fifo] of Object.entries(this.fifoBank)) {
+				for (const match of fifo.genAllMatches(str)) {
+					yield {
+						name: key,
+						split: strSpliter(str, match.search),
+						...match,
+					};
+				}
 			}
 		}
-
 	}
 
 	// set of strings to search for
-	const allSearch = {
-		fifo : new SourceFifo(500),
+	function addToFifo(sObj, fifoName) { // TODO: add blacklist arg
+		const fifo = ALLSOURCES[fifoName];
+		if (!fifo) {
+			throw `No ${fifoName}`;
+		}
+		for (const [search, decode] of deepDecode(sObj.search)) {
+			const throwaway = fifo.nq({...sObj, search: search, decode: decode});
 
-		iterateAll: function*() {
-			for (const i of this.fifo.iterateAll()) {
-				yield i;
-			}
-		},
-
-		push: function(sObj) {
-			const intCol = CONFIG.formats.interesting;
-			for (const [search, decode] of decodeFirst(sObj.search)) {
-				const throwaway = allSearch.fifo.nq({...sObj, search: search, decode: decode});
-				if (throwaway % 32 == 1) {
-					real.log(`%c[EV INFO]%c Interest fifo limit (${allSearch.fifo.limit}) exceeded, thrown away ${throwaway} items. Consider disabling unused interest search features. %c${location.href}`,
-						intCol.highlight, intCol.default, intCol.highlight
-					);
-				}
-			}
-
-			function isNeedleBad(str) {
-				if (typeof(str) !== "string" || str.length == 0 || allSearch.fifo.has(str)) {
-					return true;
-				}
-				return blacklist.matchAny(str);
-			}
-
-			function* decodeFirst(s) {
-				// TODO: Sets...
-				if (typeof(s) === 'string') {
-					yield *decodeAll(s);
-				} else if (typeof(s) === "object") {
-					const fwd = `\t{\n\t\tlet _ = ${JSON.stringify(s)};\n\t\t_`;
-					yield* decodeAny(s, `\t\tx = _\n\t}\n`, fwd);
-				}
-			}
-
-			function* decodeAny(any, decoded, fwd) {
-				if (Array.isArray(any)) {
-					yield* decodeArray(any, decoded, fwd);
-				} else if (typeof(any) == "object"){
-					yield* decodeObject(any, decoded, fwd);
-				} else {
-					yield* decodeAll(any, fwd + "= x;\n" + decoded);
-				}
-			}
-
-			function* decodeArray(a, decoded, fwd) {
-				for (const i in a) {
-					yield* decodeAny(a[i], decoded, fwd+`[${i}]`);
-				}
-			}
-
-			function* decodeObject(o, decoded, fwd) {
-				for (const prop in o) {
-					yield* decodeAny(o[prop], decoded, fwd+`[${JSON.stringify(prop)}]`);
-				}
-			}
-
-			/**
-			* Generate all possible decodings for string
-			* @s {string}	args array of arguments
-			* @decoded {string} string representing deocoding method
-			*
-			**/
-			function* decodeAll(s, decoded="") {
-				if (isNeedleBad (s)) {
-					return;
-				}
-				yield [s, decoded];
-
-				// JSON
-				try {
-					const dec = real.JSON.parse(s);
-					if (dec) {
-						const fwd = `\t{\n\t\tlet _ = ${s};\n\t\t_`;
-						yield* decodeAny(dec, `\t\tx = JSON.stringify(_);\n\t}\n${decoded}`, fwd);
-						return;
-					}
-				} catch (_) {/**/}
-
-				// URL decoder
-				try {
-					const url = new URL(s);
-					// This caused a lot of spam, so removing for now
-					// if (url.hostname != location.hostname) {
-					// 	const dec = ``
-					// 		+ `\t{\n`
-					// 		+ `\t\tconst _ = new URL("${s.replaceAll('"', "%22")}");\n`
-					// 		+ `\t\t_.hostname = x;\n`
-					// 		+ `\t\tx = _.href;\n`
-					// 		+ `\t}\n`
-					// 		+ decoded;
-					// 	yield* decodeAll(url.hostname, dec);
-					// }
-
-					// query string of URL
-					for (const [key, value] of getAllQueryParams(url.search)) {
-						const dec = ``
-							+ `\t{\n`
-							+ `\t\tconst _ = new URL("${s.replaceAll('"', "%22")}");\n`
-							+ `\t\t_.searchParams.set('${key.replaceAll('"', '\x22')}', decodeURIComponent(x));\n`
-							+ `\t\tx = _.href;\n`
-							+ `\t}\n`
-							+ decoded;
-						yield* decodeAll(value, dec);
-					}
-					if (url.hash.length > 1) {
-						const dec = ``
-							+ `\t{\n`
-							+ `\t\tconst _ = new URL("${s.replaceAll('"', "%22")}");\n`
-							+ `\t\t_.hash = x;\n`
-							+ `\t\tx = _.href;\n`
-							+ `\t}\n`
-							+ decoded;
-						yield* decodeAll(url.hash.substring(1), dec);
-					}
-				} catch (err) {
-					if (err.name !== "TypeError" || !err.message.startsWith("URL constructor: ")) {
-						real.log(err.name);
-					}
-				}
-
-				// atob
-				try {
-					const dec = real.atob.call(window, s);
-					if (dec) {
-						yield* decodeAll(dec, `\tx = btoa(x);\n${decoded}`);
-						return;
-					}
-				} catch (_) {/**/}
-
-				// string replace
-				const dec = s.replaceAll("+", " ");
-				if (dec !== s) {
-					yield* decodeAll(dec, `\tx = x.replaceAll("+", " ");\n${decoded}`);
-				}
-
-				if (!s.includes("%")) {
-					return;
-				}
-
-				// match all of them
-				try {
-					const dec = real.decodeURIComponent(s);
-					if (dec && dec != s) {
-						yield* decodeAll(dec, `\tx = encodeURIComponent(x);\n${decoded}`);
-					}
-				} catch(_){/**/}
-
-				// match all of them
-				try {
-					const dec = real.decodeURI(s);
-					if (dec && dec != s) {
-						yield* decodeAll(dec, `\tx = encodeURIComponent(x);\n${decoded}`);
-					}
-				} catch(_){/**/}
+			if (throwaway % 32 == 1) {
+				const intCol = CONFIG.formats.interesting;
+				real.log(`%c[EV INFO]%c '${CONFIG.formats[fifoName].pretty}' fifo limit (${fifo.limit}) exceeded. EV has rotated out ${throwaway} items so far. From url: %c${location.href}`,
+					intCol.highlight, intCol.default, intCol.highlight
+				);
 			}
 		}
-	};
+
+		function *deepDecode(s) {
+			// TODO: Sets...
+			if (typeof(s) === 'string') {
+				yield *decodeAll(s);
+			} else if (typeof(s) === "object") {
+				const fwd = `\t{\n\t\tlet _ = ${JSON.stringify(s)};\n\t\t_`;
+				yield *decodeAny(s, `\t\tx = _\n\t}\n`, fwd);
+			}
+		}
+
+		function isNeedleBad(str) {
+			if (typeof(str) !== "string" || str.length == 0 || fifo.has(str)) {
+				return true;
+			}
+			return BLACKLIST.matchAny(str);
+		}
+
+
+		function *decodeAny(any, decoded, fwd) {
+			if (Array.isArray(any)) {
+				yield *decodeArray(any, decoded, fwd);
+			} else if (typeof(any) == "object"){
+				yield *decodeObject(any, decoded, fwd);
+			} else {
+				yield *decodeAll(any, fwd + "= x;\n" + decoded);
+			}
+		}
+
+		function *decodeArray(a, decoded, fwd) {
+			for (const i in a) {
+				yield *decodeAny(a[i], decoded, fwd+`[${i}]`);
+			}
+		}
+
+		function* decodeObject(o, decoded, fwd) {
+			for (const prop in o) {
+				yield *decodeAny(o[prop], decoded, fwd+`[${JSON.stringify(prop)}]`);
+			}
+		}
+
+		/**
+		* Generate all possible decodings for string
+		* @s {string}	args array of arguments
+		* @decoded {string} string representing deocoding method
+		*
+		**/
+		function *decodeAll(s, decoded="") {
+			if (isNeedleBad (s)) {
+				return;
+			}
+			yield [s, decoded];
+
+			// JSON
+			try {
+				const dec = real.JSON.parse(s);
+				if (dec) {
+					const fwd = `\t{\n\t\tlet _ = ${s};\n\t\t_`;
+					yield *decodeAny(dec, `\t\tx = JSON.stringify(_);\n\t}\n${decoded}`, fwd);
+					return;
+				}
+			} catch (_) {/**/}
+
+			// URL decoder
+			try {
+				const url = new URL(s);
+				// This caused a lot of spam, so removing for now
+				// if (url.hostname != location.hostname) {
+				// 	const dec = ``
+				// 		+ `\t{\n`
+				// 		+ `\t\tconst _ = new URL("${s.replaceAll('"', "%22")}");\n`
+				// 		+ `\t\t_.hostname = x;\n`
+				// 		+ `\t\tx = _.href;\n`
+				// 		+ `\t}\n`
+				// 		+ decoded;
+				// 	yield *decodeAll(url.hostname, dec);
+				// }
+
+				// query string of URL
+				for (const [key, value] of getAllQueryParams(url.search)) {
+					const dec = ``
+						+ `\t{\n`
+						+ `\t\tconst _ = new URL("${s.replaceAll('"', "%22")}");\n`
+						+ `\t\t_.searchParams.set('${key.replaceAll('"', '\x22')}', decodeURIComponent(x));\n`
+						+ `\t\tx = _.href;\n`
+						+ `\t}\n`
+					+ decoded;
+					yield *decodeAll(value, dec);
+				}
+				if (url.hash.length > 1) {
+					const dec = ``
+						+ `\t{\n`
+						+ `\t\tconst _ = new URL("${s.replaceAll('"', "%22")}");\n`
+						+ `\t\t_.hash = x;\n`
+						+ `\t\tx = _.href;\n`
+						+ `\t}\n`
+					+ decoded;
+					yield *decodeAll(url.hash.substring(1), dec);
+				}
+			} catch (err) {
+				if (err.name !== "TypeError" || !err.message.startsWith("URL constructor: ")) {
+					real.log(err.name);
+				}
+			}
+
+			// atob
+			try {
+				const dec = real.atob.call(window, s);
+				if (dec) {
+					yield *decodeAll(dec, `\tx = btoa(x);\n${decoded}`);
+					return;
+				}
+			} catch (_) {/**/}
+
+			// string replace
+			const dec = s.replaceAll("+", " ");
+			if (dec !== s) {
+				yield *decodeAll(dec, `\tx = x.replaceAll("+", " ");\n${decoded}`);
+			}
+
+			if (!s.includes("%")) {
+				return;
+			}
+
+			// match all of them
+			try {
+				const dec = real.decodeURIComponent(s);
+				if (dec && dec != s) {
+					yield *decodeAll(dec, `\tx = encodeURIComponent(x);\n${decoded}`);
+				}
+			} catch(_){/**/}
+
+			// match all of them
+			try {
+				const dec = real.decodeURI(s);
+				if (dec && dec != s) {
+					yield *decodeAll(dec, `\tx = encodeURIComponent(x);\n${decoded}`);
+				}
+			} catch(_){/**/}
+		}
+	}
 
 	/**
 	* Helper function to turn parsable arguments into nice strings
@@ -434,7 +513,7 @@ const rewriter = function(CONFIG) {
 	**/
 	function getInterest(argObj, intrBundle) {
 
-		function printer(s, arg, spliter) {
+		function printer(s, arg) {
 			const fmt = CONFIG.formats[s.name];
 			const display = s.display? s.display: s.name;
 			let word = s.search;
@@ -467,7 +546,7 @@ const rewriter = function(CONFIG) {
 				real.logGroupCollapsed(d);
 				let add = "\t";
 				let pmtwo = false;
-				switch (s.name) {
+				switch (s.name) { // TODO: this should be moved to interestBundle, I think
 				case "localStore":
 					if (!s.param) break;
 					add += `if (y) localStorage.setItem("${s.param}", x);\n\t`;
@@ -491,38 +570,30 @@ const rewriter = function(CONFIG) {
 				real.log(`encoder = ${pmtwo ? "(x, y)" : "x"} => {\n${s.decode}${add}return x;\n}//`);
 				real.logGroupEnd(d);
 			}
-			const ar = s.split? s.split: strSpliter(arg.str, s.search);
-			zebraLog(ar, fmt);
+			zebraLog(s.split, fmt);
 			real.logGroupEnd(end);
 		}
 
-		// update allSearch lists with changing input first
+		// update changing lists
 		addChangingSearch();
 
 		const ret = [];
 
-		// needles first
 		for (const arg of argObj.args) {
 			for (const match of intrBundle.genSplits(arg.str)) {
-				ret.push(() => printer(match, arg, null));
+				ret.push(() => printer(match, arg));
 			}
 		}
 
-		// do all tests
-		for (const test of allSearch.iterateAll()) {
-			for (const arg of argObj.args) {
-				if (arg.str.includes(test.search)) {
-					ret.push(() => printer(test, arg, strSpliter));
-				}
-			}
-		}
 		return ret;
 	}
 
 	/**
 	* Parse all arguments for function `name` and pretty print them in the console
-	* @name {string} name Name of function that is being hooked
-	* @args {Array}	args array of arguments
+	* @param {SearchBundle}	intrBundle Used to check if a call is interesting
+	* @param {string}	name Name of function that is being hooked
+	* @param {array}	args array of arguments
+	* @returns {boolean} Always returns `false`
 	**/
 	function EvalVillainHook(intrBundle, name, args) {
 		const fmts = CONFIG.formats;
@@ -581,15 +652,22 @@ const rewriter = function(CONFIG) {
 		}
 		real.logGroupEnd(titleGrp);
 		return false;
-	} // end EvalVillainHook
+	}
 
 	class evProxy {
+		constructor(intr) {
+			self.intr = intr;
+		}
+
+		// Start of Eval Villain hook
 		apply(_target, _thisArg, args) {
-			EvalVillainHook(INTRBUNDLE, this.evname, args);
+			EvalVillainHook(self.intr, this.evname, args);
 			return Reflect.apply(...arguments);
 		}
+
+		// Start of Eval Villain hook
 		construct(_target, args, _newArg) {
-			EvalVillainHook(INTRBUNDLE, this.evname, args);
+			EvalVillainHook(self.intr, this.evname, args);
 			return Reflect.construct(...arguments);
 		}
 	}
@@ -600,6 +678,10 @@ const rewriter = function(CONFIG) {
 	 * file: /pages/config/config.js
 	 * function: validateFunctionsPattern
 	*/
+	/**
+	 * Accepts sink name, such as `document.write` or `value(URLSearchParams.get)` and replaces the sink with a proxy (`evProxy`).
+	 * @param {string} evname	Name of sink to hook.
+	 **/
 	function applyEvalVillain(evname) {
 		function getFunc(n) {
 			const ret = {}
@@ -617,8 +699,8 @@ const rewriter = function(CONFIG) {
 		}
 
 		const ownprop = /^(set|value)\(([a-zA-Z.]+)\)\s*$/.exec(evname);
-		const ep = new evProxy;
-		ep.evname = evname
+		const ep = new evProxy(INTRBUNDLE);
+		ep.evname = evname;
 		if (ownprop) {
 			const prop = ownprop[1];
 			const f = getFunc(ownprop[2]);
@@ -635,85 +717,33 @@ const rewriter = function(CONFIG) {
 	function addChangingSearch() {
 		// window.name
 		if (CONFIG.formats.winname) {
-			allSearch.push({
-					name: "winname",
-					display: "window.name",
-					search: window.name,
-				});
+			addToFifo({
+				display: "window.name",
+				search: window.name,
+			}, "winname");
 		}
 
 		if (CONFIG.formats.fragment) {
-			allSearch.push({
-				name: "fragment",
+			addToFifo({
 				search: location.hash.substring(1),
-			});
+			}, "fragment");
 		}
 	}
 
-	class NeedleBundle {
-		constructor(needleList) {
-			this.needles = [];
-			this.regNeedle = [];
-			const test = /^\/(.*)\/(i|g|gi|ig)?$/;
-			for (const need of needleList) {
-				const s = test.exec(need);
-				if (s) {
-					const reg = new RegExp(s[1], 
-						s[2] === undefined? "": s[2]);
-					this.regNeedle.push(reg);
-				} else {
-					this.needles.push(need);
-				}
-			}
-		}
 
-		*genStrMatches(str) {
-			for (const need of this.needles) {
-				if (str.includes(need)) {
-					yield need;
-				}
-			}
-		}
-
-		*genRegMatches(str) {
-			for (const need of this.regNeedle) {
-				need.lastIndex = 0; // just to be sure there is no funny buisness
-				if (need.test(str)) {
-					yield need;
-				}
-			}
-		}
-
-		*genMatches(str) {
-			for (const match of this.genStrMatches(str)) {
-				yield match;
-			}
-			for (const match of this.genStrMatches(str)) {
-				yield match;
-			}
-		}
-
-		matchAny(str) {
-			for (const match of this.genMatches(str)) {
-				if (match) {
-					return true;
-				}
-			}
-			return false;
-		}
-	}
-
+	/**
+	 * Parses initial values contained in sources and updates fifos with them.
+	 **/
 	function buildSearches() {
 		const formats = CONFIG.formats;
 
-		// query string
-		if (formats.query.use && window.location.search.length > 1) {
+		// query
+		if (formats.query && window.location.search.length > 1) {
 			for (const [key, value] of getAllQueryParams(window.location.search)) {
-				allSearch.push({
-					name: "query",
+				addToFifo({
 					param: key,
 					search: value
-				});
+				}, "query");
 			}
 		}
 
@@ -722,11 +752,10 @@ const rewriter = function(CONFIG) {
 			location.pathname
 				.substring(1)
 				.split('/').forEach((elm, index) => {
-					allSearch.push({
-					name: `path`,
-					param: ""+index,
-					search: elm
-				});
+					addToFifo({
+						param: ""+index,
+						search: elm
+					}, "path");
 			});
 		}
 
@@ -735,28 +764,26 @@ const rewriter = function(CONFIG) {
 			const url = new URL(document.referrer);
 			// don't show if referer is just https://example.com/ and we are on an example.com domain
 			if (url.search != location.search || url.search && url.pathname !== "/" && url.hostname !== location.hostname) {
-				allSearch.push({
-					name: "referrer",
+				addToFifo({
 					search: document.referrer
-				});
+				}, "referrer");
 			}
 		}
 
 		// cookies
 		if (formats.cookie.use) {
 			for (const i of document.cookie.split(/;\s*/)) {
+				const nm = 'cookie';
 				const s = i.split("=");
 				if (s.length >= 2) {
-					allSearch.push({
-						name: "cookie",
+					addToFifo({
 						param: s[0],
 						search: s[1],
-					});
+					}, nm);
 				} else {
-					allSearch.push({
-						name: `cookie`,
+					addToFifo({
 						search: s[0],
-					});
+					}, nm);
 				}
 			}
 		}
@@ -764,13 +791,12 @@ const rewriter = function(CONFIG) {
 		if (formats.localStore.use){
 			const l = real.localStorage.length;
 			for (let i=0; i<l; i++) {
-				const name = real.localStorage.key(i);
-				allSearch.push({
-					name: "localStore",
+				const nm = real.localStorage.key(i);
+				addToFifo({
 					display: "localStorage",
-					param: name,
-					search: real.localStorage.getItem(name),
-				});
+					param: nm,
+					search: real.localStorage.getItem(nm),
+				}, "localStore");
 			}
 		}
 
@@ -797,8 +823,18 @@ const rewriter = function(CONFIG) {
 		decodeURI : decodeURI,
 		atob: atob,
 	}
-	for (const name of CONFIG["functions"]) {
-		applyEvalVillain(name);
+
+	const BLACKLIST = new NeedleBundle(CONFIG.blacklist);
+	delete CONFIG.blacklist;
+	const INTRBUNDLE = new SearchBundle(
+		new NeedleBundle(CONFIG.needles),
+		ALLSOURCES
+	);
+	delete CONFIG.needles;
+	buildSearches();
+
+	for (const nm of CONFIG["functions"]) {
+		applyEvalVillain(nm);
 	}
 
 	// turns console.log into console.info
@@ -820,20 +856,15 @@ const rewriter = function(CONFIG) {
 					const o = typeof(v) === 'string'? v: real.JSON.stringify(v);
 					real.debug(`[EV] ${document.location.origin} EVSinker '${n}' added: ${o}`);
 				}
-				allSearch.push({
-						name: "userSource",
-						display: `${srcer}[${n}]`,
-						search: v,
-					});
+				addToFifo({
+					display: `${srcer}[${n}]`,
+					search: v,
+					}, "userSource");
 				return false;
 			}
 			delete CONFIG.sourcer;
 		}
 	}
-
-	const blacklist = new NeedleBundle(CONFIG.blacklist);
-	const INTRBUNDLE = new SearchBundle(new NeedleBundle(CONFIG.needles));
-	buildSearches(); // must be after needles are turned to regex
 
 	real.log("%c[EV]%c Functions hooked for %c%s%c",
 		CONFIG.formats.interesting.highlight,
