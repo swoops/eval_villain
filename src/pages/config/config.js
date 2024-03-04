@@ -332,13 +332,8 @@ function colorTest() {
 }
 
 async function getConfig() {
-	let si = browser.runtime.sendMessage("getScriptInfo");
-	try {
-		si = await browser.runtime.sendMessage("getScriptInfo");
-	} catch (err) {
-		console.log(err);
-	}
-	console.log(si);
+	const conf = await browser.runtime.sendMessage("getScriptInfo");
+	return conf[0];
 }
 
 self.addEventListener('load', onLoad);
