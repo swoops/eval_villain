@@ -748,7 +748,7 @@ const rewriter = function(CONFIG) {
 		}
 
 		// path
-		if (formats.path && location.pathname !== "/") {
+		if (formats.path.use && location.pathname !== "/") {
 			location.pathname
 				.substring(1)
 				.split('/').forEach((elm, index) => {
@@ -760,7 +760,7 @@ const rewriter = function(CONFIG) {
 		}
 
 		// referer
-		if (formats.referrer && document.referrer) {
+		if (formats.referrer.use && document.referrer) {
 			const url = new URL(document.referrer);
 			// don't show if referer is just https://example.com/ and we are on an example.com domain
 			if (url.search != location.search || url.search && url.pathname !== "/" && url.hostname !== location.hostname) {
