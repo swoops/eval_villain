@@ -198,6 +198,8 @@ const rewriter = function(CONFIG) {
 		}
 	}
 
+	let rotateWarnAt = 8;
+
 	// set of strings to search for
 	function addToFifo(sObj, fifoName) { // TODO: add blacklist arg
 		const fifo = ALLSOURCES[fifoName];
@@ -207,7 +209,8 @@ const rewriter = function(CONFIG) {
 		for (const [search, decode] of deepDecode(sObj.search)) {
 			const throwaway = fifo.nq({...sObj, search: search, decode: decode});
 
-			if (throwaway % 32 == 1) {
+			if (throwaway % rotateWarnAt == 1) {
+				rotateWarnAt *= 2;
 				const intCol = CONFIG.formats.interesting;
 				real.log(`%c[EV INFO]%c '${CONFIG.formats[fifoName].pretty}' fifo limit (${fifo.limit}) exceeded. EV has rotated out ${throwaway} items so far. From url: %c${location.href}`,
 					intCol.highlight, intCol.default, intCol.highlight
