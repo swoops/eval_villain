@@ -364,8 +364,9 @@ async function register() {
 	this.unreg = await browser.contentScripts.register({
 		matches: match,
 		js: [
-			{code: code},
-			{file: "/js/switcheroo.js"}
+			{code: code}, 					// contains configuration for rewriter
+			{file: "/js/rewriter.js"},		// Has actual code that gets injected into the page
+			{file: "/js/switcheroo.js"}		// cause the injection
 		],
 		runAt: "document_start",
 		allFrames: true
