@@ -40,7 +40,7 @@ function inject_it(func, info) {
 	document.documentElement.appendChild(s);
 
 	// If rewriter executes, checkId will be set. Otherwise CSP probably blocked
-	if (!(checkId in s.attributes)) {
+	if (!s.hasAttribute(checkId)) {
 		console.log("%c[ERROR]%c EV failed to load on %c%s%c",
 			config.formats.interesting.default,
 			config.formats.interesting.highlight,

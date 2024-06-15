@@ -264,17 +264,19 @@ function onLoad() {
 		}
 	}
 
+	// TODO await and simplify
 	const result = browser.storage.local.get(configList);
 	result.then(
 		writeDOM,
 		err => console.error("failed to get storage: " + err)
 	);
+	// TODO better DB in future, sipler code
 	populateColors();
 }
 
 // this table is different, rather then trying to abstract it, just handle it
 // seperatly
-function populateColors() {
+async function populateColors() {
 	// class for each column of input
 
 	function createInptCol(name, value, disabled=false) {
@@ -285,7 +287,7 @@ function populateColors() {
 		return col;
 	}
 
-	function createRow(fmt) {
+	function createFmtRow(fmt) {
 		const row = document.createElement("div");
 		row.className = "row";
 		row.appendChild(createInptCol(fmt.name, fmt.pretty, true));
@@ -294,30 +296,36 @@ function populateColors() {
 		return row;
 	}
 
-	function writeDOM(res) {
-		const formats = res.formats;
-		if (!res.formats) {
-			console.err("could not get color formats from storage");
-			return false;
-		}
-
-		const tbl = document.getElementById("formats-form");
-		for (const i of formats) {
-			if (i.open !== null) {
-				tbl.appendChild(createRow(i));
-			}
-		}
-		return true;
+	function createLimitRow(fmt) {
+		const row = document.createElement("div");
+		row.className = "row";
+		row.appendChild(createInptCol(fmt.name, fmt.pretty, true));
+		row.appendChild(createInptCol("limit", fmt.limit));
+		return row;
 	}
 
-	const result = browser.storage.local.get("formats");
-	result.then(
-		writeDOM,
-		function(err) { console.error("failed to get storage: " + err) }
-	);
 	// set save button
 	document.getElementById("save-formats").onclick = colorSave;
 	document.getElementById("test-formats").onclick = colorTest;
+
+	const {formats} = await browser.storage.local.get("formats");
+	if (!formats) {
+		console.err("could not get color formats from storage");
+		return false;
+	}
+
+	const fmtTbl = document.getElementById("formats-form");
+	const limitTbl = document.getElementById("limits-form");
+	formats.forEach(i => {
+		if (i.open !== null) {
+			fmtTbl.appendChild(createFmtRow(i));
+		}
+
+		if (i.limit) {
+			limitTbl.appendChild(createLimitRow(i));
+		}
+
+	});
 }
 
 // Should reflect switcheroo.js printing

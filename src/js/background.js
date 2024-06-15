@@ -154,6 +154,7 @@ const defaultConfig = {
 		}, {
 			"name"		: "query",
 			"pretty"	: "Query Search",
+			"limit"     : 200,
 			"use"		: true,
 			"open"		: true,
 			"default"	: "color: none",
@@ -161,6 +162,7 @@ const defaultConfig = {
 		}, {
 			"name"		: "fragment",
 			"pretty"	: "Fragment Search",
+			"limit"     : 64,
 			"use"		: true,
 			"open"		: true,
 			"default"	: "color: none",
@@ -168,6 +170,7 @@ const defaultConfig = {
 		}, {
 			"name"		: "winname",
 			"pretty"	: "window.name Search",
+			"limit"     : 200,
 			"use"		: true,
 			"open"		: true,
 			"default"	: "color: none",
@@ -175,6 +178,7 @@ const defaultConfig = {
 		}, {
 			"name"		: "path",
 			"pretty"	: "Path Search",
+			"limit"     : 32,
 			"use"		: false,
 			"open"		: true,
 			"default"	: "color: none",
@@ -182,6 +186,7 @@ const defaultConfig = {
 		}, {
 			"name"		: "referrer",
 			"pretty"	: "Referrer Search",
+			"limit"     : 32,
 			"use"		: false,
 			"open"		: true,
 			"default"	: "color: none",
@@ -189,6 +194,7 @@ const defaultConfig = {
 		}, {
 			"name"		: "cookie",
 			"pretty"	: "Cookie Search",
+			"limit"     : 32,
 			"use"		: true,
 			"open"		: false,
 			"default"	: "color: none",
@@ -196,6 +202,7 @@ const defaultConfig = {
 		}, {
 			"name"		: "localStore",
 			"pretty"	: "localStorage",
+			"limit"		: 100,
 			"use"		: true,
 			"open"		: false,
 			"default"	: "color: none",
@@ -203,6 +210,7 @@ const defaultConfig = {
 		}, {
 			"name"		: "userSource",
 			"pretty"	: "User Sources",
+			"limit"		: 100,
 			"use"		: true,
 			"open"		: false,
 			"default"	: "color: none",
@@ -266,16 +274,35 @@ async function checkStorage() {
 		if (dbconf[iter] === undefined) {
 			updateIt(iter); // DNE, add it
 		} else if (iter === "formats") {
-			if (!Array.isArray(dbconf.formats)) {
+			const dbf = dbconf.formats;
+			if (!Array.isArray(dbf)) {
 				updateIt(iter);
 				continue;
 			}
 			// if defaultConfig has changed since install, we update
-			const currentNames = dbconf.formats.map(x => x.name);
-			const defNames = defaultConfig.formats.map(x => x.name);
+			const defFormats = defaultConfig.formats;
+			const currentNames = dbf.map(x => x.name);
+			const defNames = defFormats.map(x => x.name);
 			if (!arraysEqual(currentNames, defNames)) {
 				updateIt(iter);
 			}
+
+			// if formats fields change, update it
+			dbf.some((obj, i) => {
+				// TODO: improve DB representation of formats
+				const def = defFormats[i];
+				if (obj.name != def.name) {
+					updateIt(iter);
+					return true;
+				}
+				const s1 = Object.keys(obj).join();
+				const s2 = Object.keys(def).join();
+				if (s1 != s2) {
+					updateIt(iter);
+					return true;
+				}
+				return false;
+			})
 		}
 	}
 }

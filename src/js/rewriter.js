@@ -47,17 +47,8 @@ const rewriter = function(CONFIG) {
 		}
 	}
 
-	// TODO allow user to configure each FIFO size
-	const ALLSOURCES = {
-		"query": new SourceFifo(200),
-		"fragment": new SourceFifo(64),
-		"winname": new SourceFifo(200), // can get large for safeFrames
-		"path": new SourceFifo(32),
-		"cookie": new SourceFifo(32),
-		"referrer": new SourceFifo(32),
-		"localStore": new SourceFifo(100),
-		"userSource": new SourceFifo(100),
-	};
+	/** hold all interest fifos */
+	const ALLSOURCES = {}; // Used to hold all interest Fifo's
 
 	function strSpliter(str, needle) {
 		const ret = [];
@@ -286,8 +277,9 @@ const rewriter = function(CONFIG) {
 			} catch (_) {/**/}
 
 			// URL decoder
+			let url = null;
 			try {
-				const url = new URL(s);
+				url = new URL(s);
 				// This caused a lot of spam, so removing for now
 				// if (url.hostname != location.hostname) {
 				// 	const dec = ``
@@ -322,8 +314,8 @@ const rewriter = function(CONFIG) {
 					yield *decodeAll(url.hash.substring(1), dec);
 				}
 			} catch (err) {
-				if (err.name !== "TypeError" || !err.message.startsWith("URL constructor: ")) {
-					real.log(err.name);
+				if (url) {
+					real.error("Got error during decoding: %s", JSON.stringify(err.name));
 				}
 			}
 
@@ -531,7 +523,7 @@ const rewriter = function(CONFIG) {
 				word = s.search.substr(0, 77);
 			}
 			const title = [
-				s.param ? `${display}[${s.param}]:` : `${display}:`, word
+				s.param? `${display}[${s.param}]: ` :`${display}: `, word
 			];
 			if (argObj.len > 1) {
 				title.push(`${dots} found (arg:`, arg.num, ")");
@@ -743,45 +735,56 @@ const rewriter = function(CONFIG) {
 	 * Parses initial values contained in sources and updates fifos with them.
 	 **/
 	function buildSearches() {
-		const formats = CONFIG.formats;
+		const {formats} = CONFIG;
 
-		// query
-		if (formats.query && window.location.search.length > 1) {
+		function putInUse(nm) {
+			if (formats[nm] && formats[nm].use) {
+				ALLSOURCES[nm] = new SourceFifo(formats[nm].limit);
+				return true;
+			}
+			return false;
+		}
+
+		// query TODO move to addChangingSearch
+		let nm = "query";
+		if (putInUse(nm) && window.location.search.length > 1) {
 			for (const [key, value] of getAllQueryParams(window.location.search)) {
 				addToFifo({
 					param: key,
 					search: value
-				}, "query");
+				}, nm);
 			}
 		}
 
-		// path
-		if (formats.path.use && location.pathname !== "/") {
+		// path TODO move to addChangingSearch
+		nm = "path";
+		if (putInUse(nm) && location.pathname !== "/") {
 			location.pathname
 				.substring(1)
 				.split('/').forEach((elm, index) => {
 					addToFifo({
 						param: ""+index,
 						search: elm
-					}, "path");
+					}, nm);
 			});
 		}
 
 		// referer
-		if (formats.referrer.use && document.referrer) {
+		nm = "referrer";
+		if (putInUse(nm) && document.referrer) {
 			const url = new URL(document.referrer);
 			// don't show if referer is just https://example.com/ and we are on an example.com domain
 			if (url.search != location.search || url.search && url.pathname !== "/" && url.hostname !== location.hostname) {
 				addToFifo({
 					search: document.referrer
-				}, "referrer");
+				}, nm);
 			}
 		}
 
 		// cookies
-		if (formats.cookie.use) {
+		nm = "cookie";
+		if (putInUse(nm)) {
 			for (const i of document.cookie.split(/;\s*/)) {
-				const nm = 'cookie';
 				const s = i.split("=");
 				if (s.length >= 2) {
 					addToFifo({
@@ -796,18 +799,23 @@ const rewriter = function(CONFIG) {
 			}
 		}
 
-		if (formats.localStore.use){
+		nm = "localStore"
+		if (putInUse(nm)){
 			const l = real.localStorage.length;
 			for (let i=0; i<l; i++) {
-				const nm = real.localStorage.key(i);
+				const key = real.localStorage.key(i);
 				addToFifo({
 					display: "localStorage",
-					param: nm,
+					param: key,
 					search: real.localStorage.getItem(nm),
-				}, "localStore");
+				}, nm);
 			}
 		}
 
+
+		// TODO seems repeated
+		putInUse("winname")
+		putInUse("fragment");
 		addChangingSearch();
 	}
 
@@ -821,6 +829,7 @@ const rewriter = function(CONFIG) {
 		debug : console.debug,
 		warn : console.warn,
 		dir : console.dir,
+		error : console.error,
 		logGroup : console.group,
 		logGroupEnd : console.groupEnd,
 		logGroupCollapsed : console.groupCollapsed,
@@ -839,6 +848,7 @@ const rewriter = function(CONFIG) {
 		ALLSOURCES
 	);
 	delete CONFIG.needles;
+
 	buildSearches();
 
 	for (const nm of CONFIG["functions"]) {
@@ -859,6 +869,7 @@ const rewriter = function(CONFIG) {
 		const fmt = CONFIG.formats.userSource;
 		if (fmt.use) {
 			const srcer = CONFIG.sourcer;
+			ALLSOURCES.userSource = new SourceFifo(fmt.limit);
 			window[srcer] = (n, v, debug=false) => {
 				if (debug) {
 					const o = typeof(v) === 'string'? v: real.JSON.stringify(v);
