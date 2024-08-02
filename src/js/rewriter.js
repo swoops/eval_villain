@@ -279,7 +279,7 @@ const rewriter = function(CONFIG) {
 			// URL decoder
 			let url = null;
 			try {
-				url = new URL(s);
+				url = new URL(s); // need to call URL, if it's not a URL you hit catch
 				// This caused a lot of spam, so removing for now
 				// if (url.hostname != location.hostname) {
 				// 	const dec = ``
@@ -714,19 +714,50 @@ const rewriter = function(CONFIG) {
 		}
 	}
 
+	/**
+	 * Some sources can change without reloading the page, so EV checks for
+	 * them every time. This is should be relativly fast. If they are seen
+	 * before, they should not go through deep decoding loop.
+	 */
 	function addChangingSearch() {
 		// window.name
-		if (CONFIG.formats.winname) {
+		if (ALLSOURCES.winname) {
 			addToFifo({
 				display: "window.name",
 				search: window.name,
 			}, "winname");
 		}
 
-		if (CONFIG.formats.fragment) {
+		if (ALLSOURCES.fragment) {
 			addToFifo({
 				search: location.hash.substring(1),
 			}, "fragment");
+		}
+
+		if (ALLSOURCES.query) {
+			const srch = window.location.search;
+			if (srch.length > 1) {
+				for (const [key, value] of getAllQueryParams(srch)) {
+					addToFifo({
+						param: key,
+						search: value
+					}, "query");
+				}
+			}
+		}
+
+		if (ALLSOURCES.path) {
+			const pth = location.pathname;
+			if (pth.length >= 1) {
+				addToFifo({search: pth}, "path");
+				pth.substring(1)
+					.split('/').forEach((elm, index) => {
+						addToFifo({
+							param: ""+index,
+							search: elm
+						}, "path");
+				});
+			}
 		}
 	}
 
@@ -745,32 +776,8 @@ const rewriter = function(CONFIG) {
 			return false;
 		}
 
-		// query TODO move to addChangingSearch
-		let nm = "query";
-		if (putInUse(nm) && window.location.search.length > 1) {
-			for (const [key, value] of getAllQueryParams(window.location.search)) {
-				addToFifo({
-					param: key,
-					search: value
-				}, nm);
-			}
-		}
-
-		// path TODO move to addChangingSearch
-		nm = "path";
-		if (putInUse(nm) && location.pathname !== "/") {
-			location.pathname
-				.substring(1)
-				.split('/').forEach((elm, index) => {
-					addToFifo({
-						param: ""+index,
-						search: elm
-					}, nm);
-			});
-		}
-
 		// referer
-		nm = "referrer";
+		let nm = "referrer";
 		if (putInUse(nm) && document.referrer) {
 			const url = new URL(document.referrer);
 			// don't show if referer is just https://example.com/ and we are on an example.com domain
@@ -816,6 +823,8 @@ const rewriter = function(CONFIG) {
 		// TODO seems repeated
 		putInUse("winname")
 		putInUse("fragment");
+		putInUse("path");
+		putInUse("query");
 		addChangingSearch();
 	}
 
