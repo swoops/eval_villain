@@ -776,8 +776,32 @@ const rewriter = function(CONFIG) {
 			return false;
 		}
 
+		// query TODO move to addChangingSearch
+		let nm = "query";
+		if (putInUse(nm) && window.location.search.length > 1) {
+			for (const [key, value] of getAllQueryParams(window.location.search)) {
+				addToFifo({
+					param: key,
+					search: value
+				}, nm);
+			}
+		}
+
+		// path TODO move to addChangingSearch
+		nm = "path";
+		if (putInUse(nm) && location.pathname !== "/") {
+			location.pathname
+				.substring(1)
+				.split('/').forEach((elm, index) => {
+					addToFifo({
+						param: ""+index,
+						search: elm
+					}, nm);
+			});
+		}
+
 		// referer
-		let nm = "referrer";
+		nm = "referrer";
 		if (putInUse(nm) && document.referrer) {
 			const url = new URL(document.referrer);
 			// don't show if referer is just https://example.com/ and we are on an example.com domain
