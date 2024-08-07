@@ -283,11 +283,11 @@ function onLoad() {
 		err => console.error("failed to get storage: " + err)
 	);
 	// TODO better DB in future, sipler code
-	populateColors();
+	populateFormats();
 }
 
 // formats and limits are different table types, so handled seperatly
-async function populateColors() {
+async function populateFormats() {
 	// class for each column of input
 
 	function createInptCol(name, value, xl, disabled=false) {
@@ -312,7 +312,7 @@ async function populateColors() {
 		const row = document.createElement("div");
 		row.className = "row";
 		row.appendChild(createInptCol(fmt.name, fmt.pretty, true));
-		row.appendChild(createInptCol("limit", fmt.limit));
+		row.appendChild(createInptCol("limit", fmt.limit, true));
 		return row;
 	}
 
