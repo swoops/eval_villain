@@ -163,6 +163,15 @@ function testInterset(msg, name, reason, needle, line, decoded) {
 	}
 }
 
+function pushHistoryParam(key, value, clear=true) {
+	const url = new URL(location.href);
+	if (clear) {
+		Array.from(url.searchParams.keys() ).forEach(x => url.searchParams.delete(x)); 
+	}
+	url.searchParams.set(key, value);
+	history.pushState({}, null, url);
+}
+
 function testNormal(msg, name, value) {
 	chckNArg(["%c[EV] %c%s%c %s", colNone, colGreen, name, colNone, location.href], `${msg} Normal Banner`);
 	checkArg(msg, value);

@@ -99,3 +99,13 @@ decoded = 'JSON.parse(atob("eyJmaXJzdFByb3BlcnR5IjoiZmlyc3RQcm9wYW5zIiwic2Vjb25k
 line = ['// ', needle, ''];
 eval(line.join(""));
 testInterset(t, "eval", reason, needle, line, decoded);
+
+// push state here
+t = "Push state to change URL params, test to see if new URL params found"
+const pname = "newpushedparameter";
+needle = "url_change_without_reload_test_needle";
+reason = `query[${pname}]`;
+pushHistoryParam(pname, needle)
+line = ['// ', needle, ''];
+eval(line.join(""));
+testInterset(t, "eval", reason, needle, line);
