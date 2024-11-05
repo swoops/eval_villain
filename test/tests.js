@@ -7,7 +7,7 @@
 		fail("Only Banner");
 	}
 	/* printNextArgs(); */
-	chckNArg(["%c[EV]%c Functions hooked for %c%s%c", colGreen, colRed, colGreen,"",colRed], "banner check");
+	chckNArg(["%c[EV]%c Functions hooked for %c%s%c", colGreen, colRed, colGreen, location.origin, colRed], "banner check");
 }
 
 /*
@@ -16,11 +16,11 @@
 var t = "innerHTML no interest"
 var value = 'z980j4kd0';
 document.getElementById('here').innerHTML = value;
-testNormal(t, "innerHTML", value);
+testNormal(t, "set(Element.innerHTML)", value);
 
 t = "outerHTML no interest"
 document.getElementById('here').outerHTML = value;
-testNormal(t, "outerHTML", value);
+testNormal(t, "set(Element.outerHTML)", value);
 
 t = "document.write no interest"
 document.write(value);
@@ -39,62 +39,73 @@ testNormal(t, "eval", value);
 /*
  * Interesting
 */
-var reason = "needle";
-var needle = 'asdf';
+let reason = "needle";
+let needle = 'asdf';
+let decoded = "";
 t = "Eval needle"
-var line = ['{let ', needle, ' = true}'];
+let line = ['{let ', needle, ' = true}'];
 eval(line.join(""));
 testInterset(t, "eval", reason, needle, line);
 
 t = "Blacklist true, needle eval"
-var reason = "needle";
-var needle = 'asdf';
-var line = ['', needle, ' = 1;{let ', needle, ' = true}'];
+reason = "needle";
+needle = 'asdf';
+line = ['', needle, ' = 1;{let ', needle, ' = true}'];
 eval(line.join(""));
 testInterset(t, "eval", reason, needle, line);
 
 t = "Query unencoded"
-var reason = "query[param_zxcv]";
-var needle = 'zxcv';
-var line = ['// ', needle, ''];
+reason = "query[param_zxcv]";
+needle = 'zxcv';
+line = ['// ', needle, ''];
 eval(line.join(""));
 testInterset(t, "eval", reason, needle, line, false);
 
 t = "Query encoded"
-var reason = "query[encoded]";
-var needle = '\' + <';
-var line = ['// ', needle, ''];
-var decoded = 'decodeURIComponent("%27%20%2b%20%3c")';
+reason = "query[encoded]";
+needle = '\' + <';
+line = ['// ', needle, ''];
+decoded = 'decodeURIComponent("%27%20%2b%20%3c")';
 eval(line.join(""));
 testInterset(t, "eval", reason, needle, line, decoded);
 
 t = "Fragment"
-var reason = "fragment";
-var needle = 'fragment_value';
-var line = ['// ', needle, ''];
+reason = "fragment";
+needle = 'fragment_value';
+line = ['// ', needle, ''];
 eval(line.join(""));
 testInterset(t, "eval", reason, needle, line);
 
 t = "2nd Fragment"
 needle = "newfrag";
 window.location.hash = needle;
-var reason = "fragment";
-var line = ['// ', needle, ''];
+reason = "fragment";
+line = ['// ', needle, ''];
 eval(line.join(""));
 testInterset(t, "eval", reason, needle, line);
 
 t = "new fragment blacklist"
 needle = "true";
 window.location.hash = needle;
-var reason = "fragment";
-var line = ['// ', needle, ''];
+reason = "fragment";
+line = ['// ', needle, ''];
 eval(line.join(""));
 testNormal(t, "eval", line.join(""));
 
 t = "decoding atob,json,array  atob encoded"
-var reason = "query[json]";
-var needle = 'secondinarray';
+reason = "query[json]";
+needle = 'secondinarray';
 decoded = 'JSON.parse(atob("eyJmaXJzdFByb3BlcnR5IjoiZmlyc3RQcm9wYW5zIiwic2Vjb25kQXJyYXkiOlsiZmlyc3RpbmFycmF5Iiwic2Vjb25kaW5hcnJheSJdLCJib29sIjp0cnVlLCJzbWFsbCI6ImEifQ=="))["secondArray"]["1"]';
-var line = ['// ', needle, ''];
+line = ['// ', needle, ''];
 eval(line.join(""));
 testInterset(t, "eval", reason, needle, line, decoded);
+
+// push state here
+t = "Push state to change URL params, test to see if new URL params found"
+const pname = "newpushedparameter";
+needle = "url_change_without_reload_test_needle";
+reason = `query[${pname}]`;
+pushHistoryParam(pname, needle)
+line = ['// ', needle, ''];
+eval(line.join(""));
+testInterset(t, "eval", reason, needle, line);

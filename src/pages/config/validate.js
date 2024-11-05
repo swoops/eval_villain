@@ -1,12 +1,14 @@
-var errors = {
+const errors = {
 	targets: [],
 	needles: [],
 	blacklist: [],
 	functions: [],
 	globals: [],
-	formats: []
+	formats: [],
+	limits: []
 };
 
+// used by config.js
 function validateTable(tblName) {
 	let erCount = 0;
 	let form = document.getElementById(`${tblName}-form`);
@@ -60,18 +62,21 @@ function validate(dom, tblName=null) {
 		formats: {
 			default: validateColor,
 			highlight: validateColor
+		},
+		limits: {
+			limit: validateNumber
 		}
 	}
 	if (!tblName)
 		tblName = dom.closest("form").id.split("-")[0];
 
-	let paramName = dom.name;
+	const paramName = dom.name;
 
 	if (!v[tblName]) {
 		throw `unknown table '${tblName}'`;
 	}
 
-	let res = v[tblName][paramName](dom);
+	const res = v[tblName][paramName](dom);
 
 	if (res) {
 		gotError(dom, tblName, `${paramName}:[${dom.value}]: ${res}`);
@@ -116,6 +121,18 @@ function strCheck(str) {
 		return "can't be empty"
 	}
 	return false;
+}
+
+function validateNumber(dom) {
+	const {value} = dom;
+	if (/^\d+$/.test(value)) {
+		if (Number(value) <= 0) {
+			return "Limit must be greater then 0";
+		}
+		return false;
+	}
+	return "Limit must be a number";
+
 }
 
 function validateName(dom) {
@@ -242,7 +259,7 @@ function validateFunctionsPattern(dom) {
 }
 
 function validateColor(dom) {
-	var css = dom.value;
+	const css = dom.value;
 	if (css.length == 0) {
 		dom.value = "color: none";
 	}

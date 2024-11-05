@@ -79,6 +79,14 @@ h1 {
     min-height: 1px;
 }
 
+.col-xl {
+    flex: 0 0 50%;
+    max-width: 50%;
+    position: relative;
+    width: 100%;
+    min-height: 1px;
+}
+
 .cell {
     text-align: center;
 }
@@ -143,7 +151,7 @@ input[type="text"] {
 }
 
 .deletes .row {
-    height: 50px;
+    height: 52px;
     position: relative;
 }
 

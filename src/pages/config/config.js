@@ -1,33 +1,30 @@
-var configList = ["targets", "needles",  "blacklist", "functions", "globals"];
-var normalHeaders = ["enabled", "name", "pattern"]; 
-var formatsHeader = ["default", "highlight"];
+const configList = ["targets", "needles",  "blacklist", "functions", "globals"];
+const normalHeaders = ["enabled", "name", "pattern"];
+const formatsHeader = ["default", "highlight"];
 
 function getTableData(tblName) {
-	let headers = tblName === "formats" ? formatsHeader : normalHeaders;
-	let tbl = document.getElementById(`${tblName}-form`);
-	let tblData = [];
-	for (let row of tbl.querySelectorAll(".row:not(:first-child)")) {
-		let obj = {};
+	const tbl = document.getElementById(`${tblName}-form`);
+	return Array.from(tbl.querySelectorAll(".row:not(:first-child)")).map(row => {
+		const obj = {};
 		obj.row = row;
 
-		for (let h of headers) {
-			let input = row.querySelector(`input[name='${h}']`);
+		for (const h of normalHeaders) {
+			const input = row.querySelector(`input[name='${h}']`);
 			if (input.type === "checkbox") {
 				obj[h] = input.checked;
 			} else {
 				obj[h] = input.value;
 			}
 		}
-		tblData.push(obj);
-	}
-	return tblData;
+		return obj;
+	})
 }
 
 // check entire table for updates that have not been saved
 // we get the whole table info from local storage, may as well check it all?
 function unsavedTable(tblName) {
 	function markSaved(v) {
-		let butt = document.getElementById(`save-${tblName}`);
+		const butt = document.getElementById(`save-${tblName}`);
 		if (v) {
 			butt.disabled = true;
 		} else {
@@ -36,42 +33,27 @@ function unsavedTable(tblName) {
 		}
 	}
 
-	function compareFormatData(saved, tblData) {
-		for (let j = 0, i = 0; i < saved.length; i++) {
-			const save = saved[i];
-			if (saved[i].open === null) {
-				// Can't be updated, not in table
-				continue;
-			}
-			const tbl = tblData[j++];
-			let name = tbl.row.querySelector("input:disabled").name;
-			if (name != save.name) {
-				throw "Color table does not align with formats";
-			}
-
-			for (let h of formatsHeader) {
-				if (tbl[h] != save[h]) {
-					markSaved(false);
-					return;
-				}
+	function compareFormatData(saveData) {
+		for ([save, nm, value] of genFormatPairs(tblName, saveData)) {
+			const test = typeof(save[nm]) == "number"? Number(value): value;
+			if (save[nm] != test) {
+				markSaved(false);
+				return;
 			}
 		}
 		markSaved(true);
 	}
 
 	function compareData(saveData) {
-		let tblData = getTableData(tblName);
-		let saved = saveData[tblName];
-		if (tblName == "formats") {
-			return compareFormatData(saved, tblData);
-		}
+		const tblData = getTableData(tblName);
+		const saved = saveData[tblName];
 		if (saved.length !== tblData.length) {
 			markSaved(false);
 			return;
 		}
 
 		for (let i=0; i<tblData.length; i++) {
-			for (let h of normalHeaders) {
+			for (const h of normalHeaders) {
 				if (saved[i][h] != tblData[i][h]) {
 					markSaved(false);
 					return;
@@ -82,14 +64,20 @@ function unsavedTable(tblName) {
 		return;
 	}
 
-	browser.storage.local.get(tblName)
-		.then(compareData);
+	if (["formats","limits"].includes(tblName)) {
+		// limits has name limits but uses storage formats
+		browser.storage.local.get("formats")
+			.then(compareFormatData);
+	} else {
+		browser.storage.local.get(tblName)
+			.then(compareData);
+	}
 }
 
-function createField(name, value, tblName, disabled=false) {
-	let div = document.createElement("div");
+function createField(name, value, disabled=false) {
+	const div = document.createElement("div");
 	div.className = "cell";
-	let input = document.createElement("input");
+	const input = document.createElement("input");
 	input.disabled = disabled;
 
 	input.type = "text";
@@ -98,7 +86,13 @@ function createField(name, value, tblName, disabled=false) {
 	if (!disabled) {
 		input.onblur = function(e) {
 			validate(e.target);
-			unsavedTable(tblName);
+			unsavedTable(e.target
+				.parentElement
+				.parentElement
+				.parentElement
+				.parentElement
+				.id.replace("-form", "")
+			);
 		};
 	}
 
@@ -108,15 +102,15 @@ function createField(name, value, tblName, disabled=false) {
 
 function defAddRow(tblName, ex, focus=false) {
 	function addDelete() {
-		let delRow = document.createElement("div");
+		const delRow = document.createElement("div");
 		delRow.className = "row";
-		let ecks = document.createElement("ecks");
+		const ecks = document.createElement("ecks");
 		ecks.innerText = "\u2297"; // CIRCLED TIMES
 		ecks.className = "ecks";
 		delRow.appendChild(ecks);
 		ecks.onclick = function() {
 			// remove inputs from errors, if they exist
-			for (let input of row.getElementsByTagName("input")) {
+			for (const input of row.getElementsByTagName("input")) {
 				if (input.type === "text") {
 					removeFromErrorArray(input, tblName);
 				}
@@ -129,17 +123,17 @@ function defAddRow(tblName, ex, focus=false) {
 	}
 
 	function createSwitch() {
-		let div = document.createElement("div");
+		const div = document.createElement("div");
 		div.className = "cell";
-		let label = document.createElement("label");
+		const label = document.createElement("label");
 		label.className = "switch";
-		let input = document.createElement("input");
+		const input = document.createElement("input");
 		input.type = "checkbox";
 		input.name = "enabled";
 		input.checked = ex.enabled;
 		input.onclick = () => unsavedTable(tblName);
 
-		let slider = document.createElement("div");
+		const slider = document.createElement("div");
 		slider.className = "slider";
 
 		label.appendChild(input);
@@ -148,23 +142,21 @@ function defAddRow(tblName, ex, focus=false) {
 		return div;
 	}
 
-	var row = document.createElement("div");
+	const row = document.createElement("div");
 	row.className = "row";
-	var cols = [];
+	const cols = [];
 
-	for (let cls of ["col-sm", "col-md", "col-lg"]) {
-		let div = document.createElement("div");
+	for (const cls of ["col-sm", "col-md", "col-lg"]) {
+		const div = document.createElement("div");
 		div.className = cls;
 		cols.push(div);
 	}
 
 	cols[0].appendChild(createSwitch());
-	cols[1].appendChild(createField("name", ex.name, tblName, tblName == "globals"));
-	cols[2].appendChild(createField("pattern", ex.pattern, tblName));
+	cols[1].appendChild(createField("name", ex.name, tblName == "globals"));
+	cols[2].appendChild(createField("pattern", ex.pattern));
 
-	for (let c of cols) {
-		row.appendChild(c);
-	}
+	cols.forEach(c => row.appendChild(c));
 
 	document.getElementById(`${tblName}-form`).appendChild(row);
 	if (tblName != "globals") {
@@ -175,36 +167,54 @@ function defAddRow(tblName, ex, focus=false) {
 	}
 }
 
-async function colorSave() {
-	const res = await browser.storage.local.get("formats");
+
+function rowFromName(tbl, rowName) {
+	const nodes = tbl.querySelector(`input[name=${rowName}]`)
+		?.parentElement
+		.parentElement
+		.parentElement
+		.querySelectorAll("input");
+	return nodes? Array.from(nodes): undefined;
+}
+
+function *genFormatPairs(tblName, res) {
 	const saved = res.formats;
-	const tblData = getTableData("formats");
+	const tbl = document.getElementById(`${tblName}-form`);
+	if (!tbl) {
+		throw "Uknown table name";
+	}
 
-	for (let j = 0, i = 0; i < saved.length; i++) {
-		const save = saved[i];
-		if (saved[i].open === null) {
-			// Can't be updated, not in table
-			continue;
-		}
-		const tbl = tblData[j++];
-		let name = tbl.row.querySelector("input:disabled").name;
-		if (name != save.name) {
-			throw "Color table does not align with formats";
-		}
-
-		for (let h of formatsHeader) {
-			save[h] = tbl[h];
+	for (const save of saved) {
+		const cols = rowFromName(tbl, save.name);
+		if (cols && cols.shift().name == save.name) {
+			for (const val of cols) {
+				const {name, value} = val;
+				yield [save, name, value];
+			}
 		}
 	}
+}
+
+async function formatsSave(tblName) {
+	const res = await browser.storage.local.get("formats");
+
+	for ([save, nm, value] of genFormatPairs(tblName, res)) {
+		if (typeof(save[nm]) == "number") {
+			save[nm] = Number(value);
+		} else {
+			save[nm] = value;
+		}
+	}
+
 	browser.storage.local.set(res)
 		.then(updateBackground)
-		.then(unsavedTable("formats"));
+		.then(() => unsavedTable(tblName));
 }
 
 function getDefElements(form) {
-	var all = [];
-	var i = 0;
-	for (var input of form.elements) {
+	const all = [];
+	let i = 0;
+	for (const input of form.elements) {
 		if (input.name === "enabled") {
 			all.push({"enabled" : input.checked});
 		} else if (input.name === "name") {
@@ -212,50 +222,48 @@ function getDefElements(form) {
 		} else if (input.name === "pattern") {
 			all[i]["pattern"] = input.value;
 			i++;
-		} else {
-			console.dir(input);
 		}
 	}
 	return all;
 }
 
-function saveTable(tblName) {
+async function saveTable(tblName) {
 	if (!validateTable(tblName)) {
 		return;
 	}
 
-	var tbl = document.getElementById(`${tblName}-form`);
-	var data = {};
+	const tbl = document.getElementById(`${tblName}-form`);
+	const data = {};
 	data[tblName] = getDefElements(tbl);
 
-	browser.storage.local.set(data)
-		.then(updateBackground);
+	await browser.storage.local.set(data);
+	return updateBackground();
 }
 
 function onLoad() {
 	function appendDefault(tblName) {
-		var example = { "name" : "", "enabled" : true, "pattern" : "" }
+		const example = { "name" : "", "enabled" : true, "pattern" : "" }
 		defAddRow(tblName, example, focus=true);
 	}
 
 	function writeDOM(res) {
-		for (let sub of configList) {
+		for (const sub of configList) {
 			if (!res[sub]) {
 				console.error("Could not get: " + sub);
 			}
 
-			for (let itr of res[sub]) {
+			for (const itr of res[sub]) {
 				defAddRow(sub, itr);
 			}
 		}
-		for (let sub of configList) {
+		for (const sub of configList) {
 			validateTable(sub);
 			unsavedTable(sub); // really should never change anything
 		}
 	}
 
 	// set onclick events to default buttons
-	for (let i of configList) {
+	for (const i of configList) {
 		if (i != "globals") {
 			document.getElementById(`add-${i}`).onclick = function() {
 				appendDefault(i);
@@ -263,71 +271,80 @@ function onLoad() {
 			}
 		}
 		document.getElementById(`save-${i}`).onclick = function() {
-			saveTable(i);
-			unsavedTable(i); // fix formating, should clear
+			saveTable(i)
+				.then(() => unsavedTable(i)); // fix formating, should clear
 		}
 	}
 
-	let result = browser.storage.local.get(configList);
+	// TODO await and simplify
+	const result = browser.storage.local.get(configList);
 	result.then(
 		writeDOM,
 		err => console.error("failed to get storage: " + err)
 	);
-	populateColors();
+	// TODO better DB in future, sipler code
+	populateFormats();
 }
 
-// this table is different, rather then trying to abstract it, just handle it
-// seperatly
-function populateColors() {
+// formats and limits are different table types, so handled seperatly
+async function populateFormats() {
 	// class for each column of input
 
-	function createInptCol(name, value, disabled=false) {
-		let col = document.createElement("div");
-		col.className = "col-md";
-		let field = createField(name, value, "formats", disabled);
+	function createInptCol(name, value, xl, disabled=false) {
+		const col = document.createElement("div");
+		// col.className = "col-md";
+		col.className = xl? "col-xl" : "col-md";
+		const field = createField(name, value, disabled);
 		col.appendChild(field);
 		return col;
 	}
 
-	function createRow(fmt) {
-		var row = document.createElement("div");
+	function createFmtRow(fmt) {
+		const row = document.createElement("div");
 		row.className = "row";
-		row.appendChild(createInptCol(fmt.name, fmt.pretty, true));
-		row.appendChild(createInptCol("default", fmt.default));
-		row.appendChild(createInptCol("highlight", fmt.highlight));
+		row.appendChild(createInptCol(fmt.name, fmt.pretty, false, true));
+		row.appendChild(createInptCol("default", fmt.default, false));
+		row.appendChild(createInptCol("highlight", fmt.highlight, false));
 		return row;
 	}
 
-	function writeDOM(res) {
-		let formats = res.formats;
-		if (!res.formats) {
-			console.err("could not get color formats from storage");
-			return false;
-		}
-
-		let tbl = document.getElementById("formats-form");
-		for (let i of formats) {
-			if (i.open !== null) {
-				tbl.appendChild(createRow(i));
-			}
-		}
-		return true;
+	function createLimitRow(fmt) {
+		const row = document.createElement("div");
+		row.className = "row";
+		row.appendChild(createInptCol(fmt.name, fmt.pretty, true));
+		row.appendChild(createInptCol("limit", fmt.limit, true));
+		return row;
 	}
 
-	let result = browser.storage.local.get("formats");
-	result.then(
-		writeDOM,
-		function(err) { console.error("failed to get storage: " + err) }
-	);
 	// set save button
-	document.getElementById("save-formats").onclick = colorSave;
+	document.getElementById("save-formats").onclick = () => formatsSave("formats");
 	document.getElementById("test-formats").onclick = colorTest;
+	document.getElementById("save-limits").onclick = () => formatsSave("limits");
+
+	const {formats} = await browser.storage.local.get("formats");
+	if (!formats) {
+		console.err("could not get color formats from storage");
+		return false;
+	}
+
+	const fmtTbl = document.getElementById("formats-form");
+	const limitTbl = document.getElementById("limits-form");
+	formats.forEach(i => {
+		if (i.open !== null) {
+			fmtTbl.appendChild(createFmtRow(i));
+		}
+
+		if (i.limit) {
+			limitTbl.appendChild(createLimitRow(i));
+		}
+
+	});
 }
 
 // Should reflect switcheroo.js printing
 function colorTest() {
 	browser.storage.local.get("formats").then(x => {
-		for (let i of x.formats) {
+		for (const i of x.formats) {
 			console.log("[%s] %cDefault %chighlighted",
 				i.name, i.default, i.highlight
 			);
@@ -335,4 +352,9 @@ function colorTest() {
 	});
 }
 
-window.addEventListener('load', onLoad);
+async function getConfig() {
+	const conf = await browser.runtime.sendMessage("getScriptInfo");
+	return conf[0];
+}
+
+self.addEventListener('load', onLoad);

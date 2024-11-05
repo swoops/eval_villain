@@ -19,13 +19,13 @@
 	}
 }
 
-var cl = console.log;
-var ct = console.trace;
-var cg = console.group;
-var cgc = console.groupCollapsed;
-var cge = console.groupEnd;
+const cl = console.log;
+const ct = console.trace;
+const cg = console.group;
+const cgc = console.groupCollapsed;
+const cge = console.groupEnd;
 
-var allCalls = [];
+const allCalls = [];
 function addToCalls() {
 	allCalls.push(arguments);
 }
@@ -47,24 +47,27 @@ function fail(x) {
 }
 
 function argsToPrintable(args) {
-	let ret = [];
-	for (let i in args) {
+	const ret = [];
+	for (const i in args) {
 		ret.push(args[i]);
 	}
-	return JSON.stringify(ret);
+	return JSON.stringify(ret, null, 2);
 }
 
 function printNextArgs() {
 	cl(argsToPrintable(allCalls[0]));
 }
 
+/**
+ * Tests each `args` against each `test`
+*/
 function argsIs(args, test) {
 	if (args.length != test.length) {
 		return {off: [`arg.length ${args.length} != ${test.length} test.length`], expect: test, got: args};
 	}
 	let c = 0;
-	let off = []
-	for (let i of args) {
+	const off = []
+	for (const i of args) {
 		if (i !== test[c]) {
 			off.push(`arg[${c}] '${i}' !== '${test[c]}'`)
 		}
@@ -76,23 +79,35 @@ function argsIs(args, test) {
 	return true;
 }
 
+/**
+ * Pops msg from `allCalls` and checks if it matches `test`
+*/
 function chckNArg(test, msg) {
-	let why = argsIs(allCalls.shift(), test);
+	const why = argsIs(allCalls.shift(), test);
 	if (why === true) {
 		cgc(`[%c**%c] ${msg}`, "color:green", "color:None");
 		cl(...test);
 		cge();
 	} else {
 		fail(msg);
-		cg("error info")
-		for (let i of why.off) {
+		const erinfo = "Error Info:";
+		cg(erinfo)
+		for (const i of why.off) {
 			cl(i);
 		}
-		cl("got: ", argsToPrintable(why.got));
+
+		const got = "got: ";
+		cg(got);
+		cl(argsToPrintable(why.got));
 		cl(...why.got);
-		cl("expected: ", JSON.stringify(why.expect));
+		cge();
+
+		const exp = "expected: "
+		cg(exp);
+		cl("expected: ", JSON.stringify(why.expect, null, 2));
 		cl(...why.expect);
-		cge("error info")
+		cge(exp);
+		cge(erinfo)
 	};
 }
 
@@ -100,30 +115,39 @@ function checkStackBanner(msg) {
 	chckNArg(["%cstack: ","color:None"], `${msg} stack banner`);
 }
 function checkArg(msg, value) {
-	let type = typeof(value);
+	const type = typeof(value);
 	chckNArg(["%carg(%s):",colNone, type], `${msg} arg test`);
 	chckNArg(["%c%s", colGreen, value], `${msg} Interesting args`);
 }
 
 function testInterset(msg, name, reason, needle, line, decoded) {
-	let value = line.join("");
+	const value = line.join("");
 	chckNArg(["%c[EV] %c%s%c %s", colRed, colGreen, name, colRed, location.href], `${msg} Interesting Banner`);
 	checkArg(msg, value);
 
-	var ban = null;
-	if (decoded) {
-		ban =['%c%s%c%s%c%s%c%s%c%s', colNone, `${reason}: `,
-			colGreen, needle, colNone, " found", colGreen, " derived by: ", colNone, decoded];
-	} else {
-		ban = ["%c%s%c%s%c%s", colNone,`${reason}: `, colGreen, needle, colNone, " found"];
-	}
+	const ban = decoded
+		? ['%c%s%c%s%c%s%c%s', colNone, `${reason}: `,
+			colGreen, needle, colNone, " found", colGreen, " [Decoded]"]
+		: ["%c%s%c%s%c%s", colNone,`${reason}: `, colGreen, needle, colNone, " found"];
 
 	chckNArg(ban, `${msg} Interesting highlight`);
+	if (decoded) {
+		chckNArg(["Encoder function:"], `${msg} Encoder Highlight`);
+		const encoder = allCalls.shift();
+		if (encoder.length != 1) {
+			fail("Encoder not a single arg");
+		cl(JSON.stringify(encoder, null, 2));
+		} else {
+			cl("TODO: Check if encoder makes sense:");
+			cl(encoder[0]);
+		}
+		new Function
+	}
 
-	let test = ["%c%s".repeat(line.length)];
-	let colors = [colGreen, colNone];
+	const test = ["%c%s".repeat(line.length)];
+	const colors = [colGreen, colNone];
 	let ci = line.length % 2;
-	for (let f of line) {
+	for (const f of line) {
 		test.push(colors[ci]);
 		test.push(f);
 		ci = (ci+1)%2;
@@ -137,6 +161,15 @@ function testInterset(msg, name, reason, needle, line, decoded) {
 			allCalls.shift();
 		}
 	}
+}
+
+function pushHistoryParam(key, value, clear=true) {
+	const url = new URL(location.href);
+	if (clear) {
+		Array.from(url.searchParams.keys() ).forEach(x => url.searchParams.delete(x)); 
+	}
+	url.searchParams.set(key, value);
+	history.pushState({}, null, url);
 }
 
 function testNormal(msg, name, value) {
@@ -153,9 +186,9 @@ function testNormal(msg, name, value) {
 }
 
 
-var colNone = "color:None";
-var colGreen = "color:#088"
-var colRed = "color:red"
+const colNone = "color:None";
+const colGreen = "color:#088"
+const colRed = "color:red"
 var config =  {
 	"formats" : {
 		"title" : {
@@ -164,66 +197,119 @@ var config =  {
 			"open" : true,
 			"default" : colNone,
 			"highlight" : colGreen
-		}, "interesting" : {
+		},
+		"interesting" : {
 			"pretty" : "Interesting Results",
 			"use" : true,
 			"open" : true,
 			"default" : colRed,
 			"highlight" : colGreen
-		}, "args" : {
+		},
+		"args" : {
 			"pretty" : "Args Display",
 			"use" : true,
 			"open" : true,
 			"default" : colNone,
 			"highlight" : colGreen
-		},"needle" : {
+		},
+		"needle" : {
 			"pretty" : "Needles Search",
 			"use" : true,
 			"open" : true,
 			"default" : colNone,
 			"highlight" : colGreen
-		}, "query" : {
+		},
+		"query" : {
 			"pretty" : "Query Search",
 			"use" : true,
+			"limit": 32,
 			"open" : true,
 			"default" : colNone,
 			"highlight" : colGreen
-		}, "fragment" : {
+		},
+		"fragment" : {
 			"pretty" : "Fragment Search",
 			"use" : true,
+			"limit": 32,
 			"open" : true,
 			"default" : colNone,
 			"highlight" : colGreen
-		}, "winname" : {
+		},
+		"winname" : {
 			"pretty" : "window.name Search",
 			"use" : true,
+			"limit": 32,
 			"open" : true,
 			"default" : colNone,
 			"highlight" : colGreen
-		}, "cookie" : {
+		},
+		"path": {
+			"pretty": "Path Search",
+			"use": false,
+			"limit": 32,
+			"open": true,
+			"default": "color: none",
+			"highlight": "color: #088"
+		},
+		"referrer": {
+			"pretty": "Referrer Search",
+			"use": false,
+			"limit": 32,
+			"open": true,
+			"default": "color: none",
+			"highlight": "color: #088"
+		},
+		"cookie" : {
 			"pretty"	: "Cookie Search",
 			"use"		: true,
+			"limit": 32,
 			"open"		: true,
 			"default"	: "color: none",
 			"highlight" : "color: colGreen"
-		}, "localStore" : {
+		},
+		"localStore" : {
 			"pretty"	: "localStorage",
+			"limit": 32,
 			"use"		: true,
 			"open"		: true,
 			"default"	: "color: none",
 			"highlight" : "color: yellow"
-		}, "stack" : {
+		},
+		"userSource" : {
+			"pretty" : "User Source",
+			"use" : true,
+			"limit" : 32,
+			"open" : true,
+			"default" : colNone,
+			"highlight" : colGreen
+		},
+		"stack" : {
 			"pretty" : "Stack Display",
 			"use" : true,
 			"open" : true,
 			"default" : colNone,
-			"highlight" : colGreen}
+			"highlight" : colGreen
+		},
+		"logReroute": {
+			"pretty": "Log Reroute",
+			"use": true,
+			"open": null,
+			"default": "N/A",
+			"highlight": "N/A"
+		}
 	},
 	"needles" : ["asdf"],
 	"blacklist" : [
 		"/^\\s*\\S{0,3}\\s*$/",
 		"/^s*(?:true|false)s*$/gi"
 	],
-	"functions" : ["eval","setter(innerHTML)","setter(outerHTML)","document.write","document.writeln"],
+	"functions" : [
+		"eval",
+		"set(Element.innerHTML)",
+		"set(Element.outerHTML)",
+		"document.write",
+		"document.writeln"
+	],
 	"types" : ["string"],
 };
+
