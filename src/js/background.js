@@ -138,7 +138,7 @@ const defaultConfig = {
 		{
 			"name"		: "title",
 			"pretty"	: "Normal Results",
-			"use"		: true,
+			"use"		: false,
 			"open"		: false,
 			"default"	: "color: none",
 			"highlight"	: "color: #088"
