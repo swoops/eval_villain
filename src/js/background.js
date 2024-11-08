@@ -38,6 +38,14 @@ const defaultConfig = {
 			"enabled" : true,
 			"pattern" : "setInterval"
 		}, {
+			"name" : "fetch",
+			"enabled" : true,
+			"pattern" : "fetch"
+		}, {
+			"name" : "XMLHttpRequest",
+			"enabled" : true,
+			"pattern" : "value(XMLHttpRequest.open)"
+		}, {
 			"name" : "URLSearchParams.get",
 			"enabled" : false,
 			"pattern" : "value(URLSearchParams.get)"
