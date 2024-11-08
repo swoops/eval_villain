@@ -38,6 +38,10 @@ const defaultConfig = {
 			"enabled" : true,
 			"pattern" : "setInterval"
 		}, {
+			"name" : "addEventListener",
+			"enabled" : true,
+			"pattern" : "window.addEventListener"
+		}, {
 			"name" : "fetch",
 			"enabled" : true,
 			"pattern" : "fetch"
@@ -76,9 +80,9 @@ const defaultConfig = {
 			"enabled" : true,
 			"pattern" : "asdf"
 		}, {
-			"name" : "Regex Example",
+			"name" : "postMessage handler",
 			"enabled" : false,
-			"pattern" :"/[aeiou]/gi"
+			"pattern" :"/^message$/"
 		}
 	],
 	"targets" : [
