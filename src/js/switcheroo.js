@@ -31,7 +31,7 @@ function inject_it(func, info) {
 
 	func = func.toString();
 	info["checkId"] = checkId;
-	inject = `(${func})(${JSON.stringify(info)});`;
+	const inject = `(${func})(${JSON.stringify(info)});`;
 
 	const s = document.createElement('script');
 	s.type = "text/javascript";

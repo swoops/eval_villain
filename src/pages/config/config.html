@@ -243,11 +243,18 @@
             <div class="butts">
                 <button id="save-limits"  class="saved" disabled>Save</button>
             </div>
+            <div class="butts">
+                <button id="copyconfig">Copy Config</button>
+                <button id="copyinjec">Copy Injection</button>
+            </div>
         </div>
 
         <script src="../../js/bkg_api.js"></script>
         <script src="validate.js"></script>
         <script src="config.js"></script>
+
+		<!-- this is only here so we can grab the rewriter function for "Copy Injection" -->
+        <script id="sharescript" src="../../../js/rewriter.js"></script>
     </body>
 
 </html>

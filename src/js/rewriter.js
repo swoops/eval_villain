@@ -829,8 +829,10 @@ const rewriter = function(CONFIG) {
 	}
 
 	// prove we loaded
-	document.currentScript.setAttribute(CONFIG.checkId, true);
-	delete CONFIG["checkId"];
+	if (CONFIG.checkId) {
+		document.currentScript.setAttribute(CONFIG.checkId, true);
+		delete CONFIG["checkId"];
+	}
 
 	// grab real functions before hooking
 	const real = {
