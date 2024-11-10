@@ -1,6 +1,5 @@
 const configList = ["targets", "needles",  "blacklist", "functions", "globals"];
 const normalHeaders = ["enabled", "name", "pattern"];
-const formatsHeader = ["default", "highlight"];
 
 function getTableData(tblName) {
 	const tbl = document.getElementById(`${tblName}-form`);
@@ -284,6 +283,8 @@ function onLoad() {
 	);
 	// TODO better DB in future, sipler code
 	populateFormats();
+
+	setCopyHandlers();
 }
 
 // formats and limits are different table types, so handled seperatly
@@ -354,7 +355,30 @@ function colorTest() {
 
 async function getConfig() {
 	const conf = await browser.runtime.sendMessage("getScriptInfo");
-	return conf[0];
+	return JSON.stringify(conf[0], null, 2);
+}
+
+
+async function getInjection() {
+	const conf = await getConfig();
+	const func = rewriter.toString();
+	return `(${func})(${conf});`;
+}
+
+function clipit(x, nm) {
+	navigator.clipboard.writeText(x)
+		.then(() => alert(`${nm} put in clipbaord`))
+}
+
+function setCopyHandlers() {
+	// sets up copy config and copy injection buttons
+	document.getElementById('copyconfig').onclick = function() {
+		getConfig().then(x => clipit(x, "Config"));
+	}
+	document.getElementById('copyinjec').onclick = function() {
+		getInjection().then(x => clipit(x, "Injection"));
+	}
+
 }
 
 self.addEventListener('load', onLoad);
