@@ -1,3 +1,9 @@
-.button {
- display: block;
+.content {
+	padding: 30px 50px;
+}
+.link {
+	margin-bottom: 42px;
+}
+.support {
+	margin-bottom: 18px;
 }
