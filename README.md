@@ -136,6 +136,10 @@ Before saving your changes, be sure to test your configuration to see if it
 looks good. Open the console and click the "test" button in the configuration
 page. If you like the console output then click save to keep it.
 
+This version of Eval Villain was provided through the support of [Doyensec](https://doyensec.com/research.html).
+
+![Doyensec Research](./src/icons/doyensec_logo.svg?raw=true)
+
 ## Todo:
 * If the config page is already open, go to that page instead of a new tab (may
   require permissions...)
