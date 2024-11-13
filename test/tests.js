@@ -1,5 +1,6 @@
 // switcheroo won't log, instead it will push console args to allCalls where we
 // can test them
+//
 
 // ensure functions hooked message is displayed
 {
@@ -47,9 +48,18 @@ let line = ['{let ', needle, ' = true}'];
 eval(line.join(""));
 testInterset(t, "eval", reason, needle, line);
 
+t = "localstoreage test"
+reason = `localStorage[${storekey}]`
+needle = storekeyfind;
+line = ["() => {\n\treturn '", needle, "';// ", needle, " ssssssss\n}"];
+decoded = 'decodeURIComponent("%27%20%2b%20%3c")';
+eval(line.join(""));
+testInterset(t, "eval", reason, needle, line, decoded);
+
 t = "Blacklist true, needle eval"
 reason = "needle";
 needle = 'asdf';
+decoded = "";
 line = ['', needle, ' = 1;{let ', needle, ' = true}'];
 eval(line.join(""));
 testInterset(t, "eval", reason, needle, line);
