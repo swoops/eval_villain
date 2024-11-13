@@ -1,3 +1,6 @@
+const storekey = "somekey";
+const storekeyfind = "0d9jlfk2j309jflaksjd0fasoekjr2398rjfalkjsdf";
+
 // ensure we have parameters to play with
 {
 	let jsdata = btoa(JSON.stringify(
@@ -12,11 +15,28 @@
 	let gotourl = `?one=1&json=${jsdata}&param_zxcv=zxcv&encoded=%27%20%2b%20%3c&bool=true`
 	let frag = "fragment_value";
 	let url = new URL(location.href);
-	if (url.search != gotourl || url.hash != frag) {
+
+	// localStorage test
+	let storeRefresh = false;
+	if (!localStorage.getItem(storekey)) {
+		storeRefresh = true;
+		const inner = {
+			foo: {
+				foo: {
+					ar: [
+						storekeyfind
+					]
+				}
+			}
+		}
+		localStorage.setItem(storekey, btoa(btoa(JSON.stringify(inner))));
+	}
+	if (url.search != gotourl || url.hash != frag || storeRefresh) {
 		url.search = gotourl;
 		url.hash = frag;
 		location.href = url;
 	}
+
 }
 
 const cl = console.log;
@@ -272,8 +292,8 @@ var config =  {
 			"limit": 32,
 			"use"		: true,
 			"open"		: true,
-			"default"	: "color: none",
-			"highlight" : "color: yellow"
+			"default" : colNone,
+			"highlight" : colGreen
 		},
 		"userSource" : {
 			"pretty" : "User Source",
