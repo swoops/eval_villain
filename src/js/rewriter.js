@@ -881,14 +881,16 @@ const rewriter = function(CONFIG) {
 		if (fmt.use) {
 			const srcer = CONFIG.sourcer;
 			ALLSOURCES.userSource = new SourceFifo(fmt.limit);
-			window[srcer] = (n, v, debug=false) => {
+			window[srcer] = (src_name, src_val, debug=false) => {
+				// ex: evSourcer("Response from fetch", resp.json(), true)
+				// debug=true results in a console.debug for each source injested
 				if (debug) {
-					const o = typeof(v) === 'string'? v: real.JSON.stringify(v);
-					real.debug(`[EV] ${document.location.origin} EVSinker '${n}' added: ${o}`);
+					const o = typeof(src_val) === 'string'? src_val: real.JSON.stringify(src_val);
+					real.debug(`[EV] ${srcer}[${src_name}] from ${document.location.origin}  added:\n ${o}`);
 				}
 				addToFifo({
-					display: `${srcer}[${n}]`,
-					search: v,
+					display: `${srcer}[${src_name}]`,
+					search: src_val,
 					}, "userSource");
 				return false;
 			}
