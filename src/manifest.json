@@ -1,7 +1,7 @@
 {
 	"manifest_version" : 2,
 	"name" : "Eval Villain",
-	"version" : "2.10",
+	"version" : "2.11",
 	"description" : "Hook interesting functions to see their input.",
 	"permissions": ["<all_urls>", "storage"],
 	"icons" : {
