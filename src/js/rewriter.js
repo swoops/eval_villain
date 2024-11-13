@@ -547,6 +547,15 @@ const rewriter = function(CONFIG) {
 				let add = "\t";
 				let pmtwo = false;
 				switch (s.name) { // TODO: this should be moved to interestBundle, I think
+				case "path":
+					if (!s.param) break;
+					add += `if (y) {\n\t\t`
+					add += `const pth = document.location.pathname.substring(1).split('/');\n\t\t`;
+					add += `pth[${s.param}] = x;\n\t\t`;
+					add += `document.location.pathname = '/' + pth.join('/');\n\t`;
+					add += `}\n\t`
+					pmtwo = true;
+					break;
 				case "localStore":
 					if (!s.param) break;
 					add += `if (y) localStorage.setItem("${s.param}", x);\n\t`;
