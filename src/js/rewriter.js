@@ -541,7 +541,7 @@ const rewriter = function(CONFIG) {
 				real.log(s.search);
 				real.logGroupEnd(d);
 			}
-			if (s.decode) {
+			if (s.decode) { // TODO probably should be moved to the recursve decoder area
 				const d = "Encoder function:";
 				real.logGroupCollapsed(d);
 				let add = "\t";
@@ -814,7 +814,7 @@ const rewriter = function(CONFIG) {
 				addToFifo({
 					display: "localStorage",
 					param: key,
-					search: real.localStorage.getItem(nm),
+					search: real.localStorage.getItem(key),
 				}, nm);
 			}
 		}
